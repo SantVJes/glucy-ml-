@@ -1,0 +1,4 @@
+# Herramientas de desarrollo. Las dependencias del entrenamiento llegan en la fase 3:
+# xgboost, scikit-learn, shap, pandas, numpy y coremltools.
+pytest>=8.0
+ruff>=0.6

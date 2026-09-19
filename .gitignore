@@ -1,0 +1,45 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# --- Glucy ML: los datos NO se suben ---
+# El acuerdo de uso de OhioT1DM prohíbe redistribuir el conjunto, y este repositorio es
+# público. Solo se versiona el README que explica cómo conseguirlo.
+data/*
+!data/README.md
+
+# Artefactos pesados del entrenamiento. Se versiona el modelo publicado y su JSON de
+# métricas, no las corridas intermedias.
+artifacts/tmp/
+artifacts/**/*.bin
+mlruns/
+wandb/
+
+# --- Glucy: nada de esto entra al repositorio ---
+# Llaves, tokens y cadenas de conexión. Van en variables de entorno o en el Keychain.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
