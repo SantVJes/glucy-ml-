@@ -1,0 +1,44 @@
+{
+  "modelo": "m1",
+  "version": "v0.1.0-simulador",
+  "caracteristicas": [
+    "mg_dl",
+    "rezago_5",
+    "rezago_10",
+    "rezago_15",
+    "rezago_30",
+    "rezago_60",
+    "derivada_1",
+    "derivada_2",
+    "media_30",
+    "media_60",
+    "cob",
+    "iob",
+    "hora_sin",
+    "hora_cos",
+    "dia_semana"
+  ],
+  "origen_de_las_filas_de_comprobacion": "simulador",
+  "tolerancia_mg_dl": 0.001,
+  "comprobacion": {
+    "n": 2000,
+    "n_filas_con_faltantes": 12,
+    "max_diferencia": 0.000213623046875,
+    "media_diferencia": 3.500747698126361e-05,
+    "max_diferencia_con_doble_precision": 1.4333953857421875,
+    "filas_que_cambian_con_doble_precision": 449,
+    "max_diferencia_ignorando_faltantes": 21.620994567871094,
+    "filas_que_cambian_mas_de_lo_que_importa": 12,
+    "cortes": 4415,
+    "cortes_con_faltante_al_verdadero": 472
+  },
+  "la_traduccion_es_fiel": true,
+  "hay_que_comprobar_el_faltante_en_el_iphone": true,
+  "la_app_tiene_que_mandar_float_de_32_bits": true,
+  "entorno": {
+    "python": "3.13.17",
+    "sistema": "Linux x86_64",
+    "xgboost": "3.4.1",
+    "scikit-learn": "1.9.1"
+  }
+}
