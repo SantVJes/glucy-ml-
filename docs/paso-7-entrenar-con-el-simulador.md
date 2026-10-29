@@ -120,8 +120,7 @@ idénticas, dejar un sujeto fuera y repartir al azar darían lo mismo.
 
 ## El hallazgo del paso: la sensibilidad estaba mal comparada
 
-M-1 sobre el simulador, 145 062 filas, 18 pliegues y **cuatro** de las cinco líneas base
-(la recurrente se corrió aparte, por lo que se cuenta más abajo):
+M-1 sobre el simulador, 145 062 filas, 18 pliegues y **las cinco líneas base** del protocolo:
 
 | | RMSE | MAE | MARD | A+B | Sens. hipo | Falsas |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -130,9 +129,13 @@ M-1 sobre el simulador, 145 062 filas, 18 pliegues y **cuatro** de las cinco lí
 | extrapolación lineal | 24.14 | 17.84 | 14.38 % | 99.16 % | 75.3 % | 58.4 % |
 | ridge | 14.88 | 11.13 | 9.36 % | 98.46 % | 45.9 % | 17.4 % |
 | bosque | 14.24 | 10.60 | 8.77 % | 98.96 % | 59.5 % | 20.7 % |
+| lstm | 15.94 | 11.83 | 9.94 % | 97.58 % | 29.3 % | **8.5 %** |
 
 Cumple cuatro metas de seis: RMSE ≤ 20, MAE ≤ 15, MARD ≤ 12 % y A+B ≥ 95 %. **Falla las dos
 clínicas**: sensibilidad 59.2 % contra una meta de 85 %, y falsas alarmas 20.2 % contra 15 %.
+
+M-1 tiene **el mejor RMSE, MAE y MARD de las seis filas**, la recurrente incluida. Lo único que
+no gana es el A+B de Clarke, por 0.12 puntos contra la persistencia.
 
 Y la persistencia caza más hipoglucemias que el modelo. El guion lo detectó solo, porque «le
 gana a la persistencia» exige mejor RMSE **y** no peor A+B, y el A+B es 0.12 puntos peor.
@@ -187,6 +190,7 @@ persistencia            144954    30.98    21.99  17.21%  97.85%      55.6     4
 extrapolación lineal    144738    44.34    31.38  24.28%  96.34%      76.6     72.8%
 ridge                   144954    23.56    17.21  14.48%  95.94%       6.1     26.7%
 bosque                  144954    22.34    16.17  13.26%  97.39%      35.4     29.5%
+lstm                    144954    23.98    17.11  14.06%  95.68%       9.5     15.9%
 ```
 
 Igualando la molestia: la persistencia caza 55.6 % con 44.4 % de falsas; M-2 con aviso < 79
@@ -203,16 +207,37 @@ encoge tanto hacia la media que casi nunca cruza el umbral, y se le escapan diec
 veinte hipoglucemias **con un RMSE de 23.56 que se ve respetable**. Es el argumento entero de
 este paso en una sola fila: el RMSE no mide lo que la app necesita medir.
 
-## La línea base recurrente, corrida aparte
+## La línea base recurrente, y lo que su fila enseña
 
-Las cinco líneas base son obligatorias, y la LSTM está escrita y probada. No entra en los dos
-cuadros de arriba porque las dos corridas con las cinco líneas base llevaban dos horas y media
-sin terminar en cuatro núcleos y se cortaron: la red recurrente entrena dieciocho veces, una
-por pliegue, y en esta máquina pesa más que el modelo y las otras tres líneas base juntas.
+La LSTM entra en los dos cuadros de arriba y en el manifiesto de los dos artefactos. Las
+primeras corridas se habían hecho con `--sin-lstm` porque con las cinco pasaban de dos horas y
+media sin terminar; con el arreglo de rendimiento que salió de este mismo paso, **una corrida
+con las cinco tarda nueve minutos**, así que ya no hay nada que explicar en el reporte.
 
-Se corre con `--sin-lstm` fuera para que su fila exista, y **el reporte dice que fue una corrida
-aparte**. Es una limitación de la máquina, no un resultado: `src/eval/baselines.py` la tiene
-igual que las otras cuatro y sus pruebas pasan.
+Y su fila dice algo que el resto del cuadro no decía tan claro. En M-1 la recurrente tiene
+**8.5 % de falsas alarmas: cumple la meta de ≤ 15 % y es la única fila que la cumple.** También
+tiene 29.3 % de sensibilidad, o sea que **se le escapan siete de cada diez hipoglucemias**.
+
+Puestas en orden de cuánto encoge cada modelo hacia la media, las dos columnas clínicas se mueven
+juntas y en direcciones opuestas:
+
+| | Sens. hipo | Falsas |
+| --- | --- | --- |
+| extrapolación lineal (no encoge nada) | 75.3 % | 58.4 % |
+| persistencia | 67.8 % | 32.1 % |
+| bosque | 59.5 % | 20.7 % |
+| M-1 | 59.2 % | 20.2 % |
+| ridge | 45.9 % | 17.4 % |
+| lstm (encoge más) | 29.3 % | **8.5 %** |
+
+**La meta de falsas alarmas se cumple sola con un modelo que casi no avisa**, y la de
+sensibilidad se cumple sola con uno que avisa casi siempre. Por separado no significan nada; por
+eso `Punto.cumple_las_metas` exige las dos a la vez y por eso la comparación válida es a igual
+tasa de falsas alarmas. Una tabla que reportara solo la columna de falsas alarmas premiaría al
+peor modelo de los cinco.
+
+A 60 minutos el efecto llega al extremo: ridge caza **6.1 %** y la recurrente **9.5 %**, con
+RMSE de 23.56 y 23.98 que se ven respetables al lado del 22.05 de M-2.
 
 ### La parte que el código no puede hacer cumplir
 
@@ -275,9 +300,18 @@ cuadrático: **68 segundos por sujeto**, veinte minutos por los dieciocho, tres 
 
 Con búsqueda binaria son **1.3 segundos por sujeto**, 56 veces menos, y las filas salen
 idénticas valor por valor con los `NaN` incluidos. Está aparte, en su propio PR, porque no es
-un resultado de este paso; pero sí es la razón por la que este paso tardó lo que tardó, y el
-reporte puede decir cuánto cuesta una tanda completa con el número de ahora y no con el de
-antes.
+un resultado de este paso.
+
+Para el reporte, el número de ahora medido de punta a punta: **M-1 con las cinco líneas base, la
+recurrente incluida, tarda 8 minutos 53 segundos** en esta máquina de cuatro núcleos. Antes, las
+dos corridas con cuatro líneas base cada una tardaron dos horas y veinticuatro minutos juntas.
+De esa diferencia, lo que está medido por separado es la parte de armar las filas: veinte
+minutos por corrida que pasan a veinticinco segundos. El resto se explica por haber corrido M-1
+y M-2 a la vez en cuatro núcleos, con XGBoost y el bosque pidiendo los cuatro cada uno, pero
+**eso no se midió aparte y el reporte no debería atribuirlo con precisión**.
+
+Que las dos corridas nuevas dan exactamente los mismos números que las viejas, con el modelo
+idéntico byte por byte, es lo que confirma que el arreglo cambió el tiempo y nada más.
 
 ## Lo que este paso no hace
 
@@ -301,8 +335,8 @@ antes.
 ```bash
 pip install "setuptools<81" simglucose
 python -m src.datos.simulador --dias 28 --salida data/simulador
-python -m src.train.train_m1 --datos simulador --sin-lstm
-python -m src.train.train_m2 --datos simulador --sin-lstm
+python -m src.train.train_m1 --datos simulador
+python -m src.train.train_m2 --datos simulador
 python -m src.train.train_m3 --datos simulador
 python -m src.export.to_coreml --artefacto artifacts/m1-v0.1.0-simulador.json \
   --datos simulador
