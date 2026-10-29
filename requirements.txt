@@ -34,3 +34,14 @@ coremltools>=8.0
 # se usan. Igual que todo lo demás de este archivo, la integración continua NO lo instala: las
 # pruebas de la LSTM se saltan solas ahí y corren completas en la máquina que entrena.
 torch>=2.4
+
+# Simulador fisiológico UVA/Padova (2008), el **plan B acordado** si OhioT1DM no llega antes
+# del 8 de noviembre de 2026. No es un sustituto silencioso: `src/train/artefacto.py` marca el
+# origen `simulador` en el manifiesto y el entrenamiento avisa en pantalla de que la métrica se
+# reporta diciendo de dónde salió.
+#
+# Trampa al instalar: `simglucose/__init__.py` importa gym 0.9.4, que hace `import
+# pkg_resources`, y **setuptools 81 lo quitó**. Sin el tope de abajo el `import simglucose`
+# falla con ModuleNotFoundError y no hay nada en el mensaje que apunte a setuptools.
+setuptools<81
+simglucose>=0.2.2
