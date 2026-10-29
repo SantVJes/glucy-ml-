@@ -290,3 +290,72 @@ def test_el_resumen_dice_no_se_midio_cuando_no_hubo_hipoglucemias():
     )
     assert corrida.resultado.sensibilidad_hipo is None
     assert "no se midió" in resumen(corrida)
+
+
+# --- Que un trabajo de horas diga por dónde va --------------------------------------------
+
+
+def test_avisar_recibe_una_linea_por_pliegue_con_el_sujeto_que_queda_fuera():
+    """Sin esto, una corrida de dieciocho sujetos con la línea base recurrente estuvo hora y
+    cuarenta minutos sin imprimir nada, y desde fuera «va por el pliegue once» y «se colgó» se
+    veían igual: el único indicio era que el proceso seguía gastando CPU.
+    """
+    lineas: list[str] = []
+    evaluar_con_loso(
+        tres_sujetos(),
+        juego="denso",
+        horizonte_min=30,
+        construir_modelo=ModeloEspia,
+        avisar=lineas.append,
+    )
+    assert len(lineas) == 3
+    assert all("3" in linea for linea in lineas), "falta el total, que es lo que da la escala"
+    assert [linea.split("fuera ")[1] for linea in lineas] == ["A", "B", "C"]
+
+
+def test_avisar_llega_despues_de_las_lineas_base_del_pliegue():
+    """El aviso dice «pliegue listo», así que tiene que salir cuando el pliegue está entero.
+
+    Avisarlo antes de medir las líneas base lo dejaría apareciendo mientras la parte lenta —la
+    recurrente— todavía corre, que es justo el minuto que se quería poder ver.
+    """
+    orden: list[str] = []
+
+    class BaseQueAnota(Persistencia):
+        def ajustar(self, x, y) -> None:
+            orden.append("base")
+            super().ajustar(x, y)
+
+    evaluar_con_loso(
+        tres_sujetos(),
+        juego="denso",
+        horizonte_min=30,
+        construir_modelo=ModeloEspia,
+        construir_lineas_base=lambda: {"persistencia": BaseQueAnota()},
+        avisar=lambda _: orden.append("aviso"),
+    )
+    assert orden == ["base", "aviso"] * 3
+
+
+def test_sin_avisar_no_se_imprime_nada_y_la_corrida_sale_igual():
+    """La bandera es opcional: las corridas y las pruebas que no la pasan no cambian."""
+    con = evaluar_con_loso(
+        tres_sujetos(), juego="denso", horizonte_min=30, construir_modelo=ModeloEspia
+    )
+    assert con.sujetos == ("A", "B", "C")
+
+
+def test_el_loso_simple_tambien_avisa():
+    """M-3 corre dos veces el bucle —el valor del pico y su hora—, así que es el que más
+    tiempo pasa sin decir nada."""
+    lineas: list[str] = []
+    evaluar_con_loso_simple(
+        tres_sujetos(),
+        juego="denso",
+        objetivo=lambda f: f.objetivo,
+        construir_modelo=ModeloEspia,
+        unidad="mg/dL",
+        avisar=lineas.append,
+    )
+    assert len(lineas) == 3
+    assert "fuera A" in lineas[0]

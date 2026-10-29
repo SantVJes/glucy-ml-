@@ -97,6 +97,7 @@ def evaluar_con_loso(
     construir_lineas_base: Callable[[], dict[str, object]] | None = None,
     umbral_hipo: int = 70,
     nombre: str = "modelo",
+    avisar: Callable[[str], None] | None = None,
 ) -> Corrida:
     """Entrena y evalúa dejando un sujeto fuera, el modelo y sus líneas base a la vez.
 
@@ -104,6 +105,12 @@ def evaluar_con_loso(
     pliegue: reutilizar el mismo objeto lo seguiría entrenando con los sujetos de los pliegues
     anteriores, que es fuga de información entre pliegues y da un resultado inflado sin que
     nada falle.
+
+    `avisar` recibe una línea por pliegue terminado. Existe porque esta función tardó **una
+    hora y cuarenta minutos sin imprimir nada** con dieciocho sujetos y la línea base
+    recurrente, y desde fuera no había forma de distinguir «va por el pliegue once» de «se
+    colgó»: el único indicio era que el proceso seguía gastando CPU. Un trabajo de horas que
+    no dice por dónde va obliga a elegir entre esperar a ciegas y matarlo por si acaso.
     """
     if not filas:
         raise ValueError("no hay filas con las que entrenar")
@@ -112,7 +119,8 @@ def evaluar_con_loso(
     por_linea_base: dict[str, list[Prediccion]] = {}
     n_entrenamiento = 0
 
-    for pliegue in pliegues_loso(filas):
+    todos = list(pliegues_loso(filas))
+    for i, pliegue in enumerate(todos, start=1):
         x_entrena = a_matriz([f.caracteristicas for f in pliegue.entrenamiento], juego)
         y_entrena = [f.objetivo for f in pliegue.entrenamiento]
         x_prueba = a_matriz([f.caracteristicas for f in pliegue.prueba], juego)
@@ -133,6 +141,9 @@ def evaluar_con_loso(
                 Prediccion(sujeto=sujeto, real=r, predicho=p)
                 for r, p in zip(reales, base.predecir(x_prueba), strict=True)  # type: ignore[attr-defined]
             )
+
+        if avisar is not None:
+            avisar(f"  pliegue {i}/{len(todos)} listo, fuera {sujeto}")
 
     sujetos = tuple(sorted({p.sujeto for p in predicciones}))
     return Corrida(
@@ -226,11 +237,15 @@ def evaluar_con_loso_simple(
     objetivo: Callable[[object], float],
     construir_modelo: Callable[[], object],
     unidad: str,
+    avisar: Callable[[str], None] | None = None,
 ) -> tuple[ResultadoSimple, dict[str, ResultadoSimple]]:
     """El mismo LOSO, midiendo solo RMSE y MAE. Devuelve el agregado y el de cada sujeto.
 
     `objetivo` saca el número a predecir de cada fila, para que la misma función sirva para el
     valor del pico y para su hora sin duplicar el bucle.
+
+    `avisar` recibe una línea por pliegue terminado, igual que en `evaluar_con_loso` y por la
+    misma razón: un trabajo largo que no dice por dónde va no se distingue de uno colgado.
     """
     from src.eval.metrics import mae, rmse
 
@@ -238,7 +253,8 @@ def evaluar_con_loso_simple(
         raise ValueError("no hay filas con las que entrenar")
 
     predicciones: list[Prediccion] = []
-    for pliegue in pliegues_loso(filas):  # type: ignore[arg-type]
+    todos = list(pliegues_loso(filas))  # type: ignore[arg-type]
+    for i, pliegue in enumerate(todos, start=1):
         x_entrena = a_matriz([f.caracteristicas for f in pliegue.entrenamiento], juego)  # type: ignore[attr-defined]
         x_prueba = a_matriz([f.caracteristicas for f in pliegue.prueba], juego)  # type: ignore[attr-defined]
         modelo = construir_modelo()
@@ -247,6 +263,8 @@ def evaluar_con_loso_simple(
             Prediccion(sujeto=pliegue.sujetos_prueba[0], real=objetivo(f), predicho=p)
             for f, p in zip(pliegue.prueba, modelo.predecir(x_prueba), strict=True)  # type: ignore[attr-defined]
         )
+        if avisar is not None:
+            avisar(f"  pliegue {i}/{len(todos)} listo, fuera {pliegue.sujetos_prueba[0]}")
 
     def medir(ps: Sequence[Prediccion]) -> ResultadoSimple:
         limpias = _limpiar(ps)

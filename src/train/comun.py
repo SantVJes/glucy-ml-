@@ -221,6 +221,12 @@ def correr(
     filas = filas_de(registros(args), horizonte_min=horizonte_min)
     print(f"{len(filas)} filas de {len({f.sujeto for f in filas})} sujetos")
 
+    cuantas_base = len(_lineas_base(args, horizonte_min))
+    print(
+        f"{len({f.sujeto for f in filas})} pliegues, cada uno con el modelo y "
+        f"{cuantas_base} líneas base:",
+        flush=True,
+    )
     corrida = evaluar_con_loso(
         filas,
         juego=juego,
@@ -229,6 +235,7 @@ def correr(
         construir_lineas_base=lambda: _lineas_base(args, horizonte_min),
         umbral_hipo=args.umbral_hipo,
         nombre=modelo,
+        avisar=lambda linea: print(linea, flush=True),
     )
     print()
     print(resumen(corrida))
