@@ -114,8 +114,10 @@ def test_la_primera_derivada_es_mg_dl_por_minuto():
 def test_las_medias_moviles_solo_usan_lo_que_cae_en_la_ventana():
     lecturas = serie(range(100, 120))  # 20 lecturas cada 5 min = 95 minutos
     fila = caracteristicas_densas(lecturas, [], [])
-    # La media de 30 minutos toma los últimos 7 puntos (0, 5, ..., 30 minutos atrás).
-    esperada = sum(range(113, 120)) / 7
+    # Seis puntos y no siete: la ventana es `(desde, ahora]`, así que la lectura que cae
+    # exactamente a 30 minutos queda fuera. Esta prueba fijaba siete, que era la convención
+    # equivocada; la del pipeline del backend, que es la autoridad, es esta.
+    esperada = sum(range(114, 120)) / 6
     assert fila["media_30"] == pytest.approx(esperada)
 
 
@@ -357,3 +359,109 @@ def test_una_serie_desordenada_se_rechaza_en_lugar_de_dar_filas_mal():
     desordenada = [lectura_en(0, 100), lectura_en(30, 140), lectura_en(10, 120)]
     with pytest.raises(ValueError, match="ordenada"):
         filas_densas(desordenada, [], [], horizonte_min=30)
+
+
+# --- El contrato con la referencia clínica -------------------------------------------------
+#
+# `referencia/reglas_clinicas.py` del backend es la autoridad sobre las reglas clínicas, y el
+# pipeline que alimenta al modelo en producción importa de ahí su COB y su IOB. Este
+# repositorio no puede importarlo, así que copia la curva y la fija aquí **con valores
+# literales**, igual que `test_caracteristicas.py` fija las tuplas del contrato. Es la única
+# red posible: un cambio tendría que hacerse a mano y a la vista.
+#
+# Lo que había antes era una aproximación lineal con un docstring que afirmaba ser «la misma
+# forma que usa el backend». No lo era, y el modelo aprendió una columna `iob` que el backend
+# nunca le iba a dar. Estas pruebas existen para que no vuelva a pasar en silencio.
+
+# Sacados de `fraccion_insulina_activa` de la referencia, con duración 5 h y pico 75 min.
+FRACCION_DE_LA_REFERENCIA = {
+    0: 1.0,
+    1: 0.999894548,
+    15: 0.978824545,
+    30: 0.924970186,
+    45: 0.850355815,
+    60: 0.764005704,
+    75: 0.672639890,
+    90: 0.581155607,
+    120: 0.410579942,
+    150: 0.268112684,
+    180: 0.158796415,
+    240: 0.032924869,
+    290: 0.000766432,
+    300: 0.0,
+    400: 0.0,
+}
+
+
+def test_la_fraccion_activa_es_la_de_la_referencia_valor_por_valor():
+    """La prueba que cierra el agujero. Si alguien vuelve a «simplificar» la curva, falla."""
+    from src.features.ventanas import fraccion_insulina_activa
+
+    for minutos, esperada in FRACCION_DE_LA_REFERENCIA.items():
+        assert fraccion_insulina_activa(float(minutos)) == pytest.approx(esperada, abs=1e-9), (
+            f"a los {minutos} min la fracción activa ya no es la de la referencia"
+        )
+
+
+def test_a_las_tres_horas_queda_el_16_por_ciento_y_no_el_40():
+    """El número concreto que delató el error, escrito para que se reconozca si reaparece.
+
+    La recta que había antes decía 40 % a los 180 minutos. Con un bolo de 6 UI eso son 1.45 UI
+    de insulina que no existen, siempre de más a partir de la primera hora, y entrando a la
+    columna `iob` de cada fila de entrenamiento.
+    """
+    from src.features.ventanas import fraccion_insulina_activa
+
+    assert fraccion_insulina_activa(180) == pytest.approx(0.1588, abs=1e-4)
+    recta_vieja = 0.75 * (1 - (180 - 75) / (300 - 75))
+    assert recta_vieja == pytest.approx(0.40, abs=1e-9)
+    assert abs(fraccion_insulina_activa(180) - recta_vieja) > 0.2
+
+
+def test_la_fraccion_activa_solo_baja():
+    """Una curva de insulina no puede repuntar: lo consumido no vuelve."""
+    from src.features.ventanas import fraccion_insulina_activa
+
+    valores = [fraccion_insulina_activa(float(m)) for m in range(0, 301, 5)]
+    assert valores == sorted(valores, reverse=True)
+
+
+def test_una_dosis_futura_no_cuenta_aunque_la_referencia_devuelva_uno():
+    """La referencia devuelve 1.0 para minutos negativos, que es lo correcto *para una dosis
+    ya puesta*. Armando filas, un negativo es una dosis que todavía no ocurre, y contarla
+    sería mirar hacia adelante: la fila tendría información del futuro."""
+    assert iob([evento(60, 5.0, "bolus")], ARRANQUE.timestamp()) == 0.0
+
+
+def test_la_ventana_de_los_promedios_no_incluye_su_borde_inferior():
+    """`(desde, ahora]`, como `_media` del pipeline del backend.
+
+    Con el borde inferior incluido, `media_30` sobre una serie de cinco minutos promediaba
+    siete lecturas donde producción promedia seis. En una subida eso mueve el promedio unos
+    cuantos mg/dL en **cada fila**, y nada falla.
+    """
+    # Siete lecturas de 5 en 5: la primera cae exactamente a 30 minutos de la última.
+    historia = serie([100, 110, 120, 130, 140, 150, 160])
+    fila = caracteristicas_densas(historia, [], [])
+    seis_ultimas = sum([110, 120, 130, 140, 150, 160]) / 6
+    las_siete = sum([100, 110, 120, 130, 140, 150, 160]) / 7
+    assert fila["media_30"] == pytest.approx(seis_ultimas)
+    assert fila["media_30"] != pytest.approx(las_siete)
+
+
+def test_la_hora_del_dia_cuenta_los_segundos():
+    """El pipeline del backend los cuenta, así que aquí también. Una muestra que no cae en el
+    minuto exacto daría otro ángulo que en producción."""
+    en_punto = [lectura_en(0, 120)]
+    con_segundos = [
+        Lectura(
+            sujeto="S00",
+            ts=ARRANQUE + timedelta(seconds=30),
+            mg_dl=120.0,
+            del_sensor=True,
+        )
+    ]
+    assert (
+        caracteristicas_densas(en_punto, [], [])["hora_sin"]
+        != caracteristicas_densas(con_segundos, [], [])["hora_sin"]
+    )
