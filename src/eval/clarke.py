@@ -15,58 +15,58 @@ Las cinco zonas, en los términos del artículo original:
 | D | lleva a **no detectar** una glucosa que estaba fuera de rango |
 | E | lleva a un tratamiento **contrario** al que hacía falta |
 
-## Por qué este archivo no copia la referencia del backend
+## El cotejo con las implementaciones públicas
 
 `referencia/reglas_clinicas.py` de `glucy-backend` es el árbitro de las reglas clínicas y este
-repositorio tiene que dar sus mismos números. Su propio `docstring` de `zona_clarke` advertía
-que la implementación seguía «la formulación habitual» y que **convenía cotejarla antes de
-reportar métricas**.
+repositorio tiene que dar sus mismos números. Su `docstring` de `zona_clarke` advertía que la
+implementación seguía «la formulación habitual» y que **convenía cotejarla antes de reportar
+métricas**. Se cotejó el 29/10/2026 y se rehízo el mismo día, par por par sobre los 337 561
+pares enteros de 20 a 600 mg/dL, contra las dos implementaciones públicas que se pueden leer:
 
-Se cotejó (29/10/2026). Se comparó la referencia del backend contra el puerto de Python de la
-implementación de MATLAB File Exchange, par por par sobre los 337 561 pares enteros de 20 a
-600 mg/dL. **No coinciden en 29 690 pares, en tres familias**, y no todas van en la misma
-dirección:
+- el puerto de Python de la implementación de MATLAB File Exchange,
+  https://github.com/suetAndTie/ClarkeErrorGrid, leyendo su código fuente, y
+- el código SAS del paper 133-2013 del SAS Global Forum,
+  https://support.sas.com/resources/papers/proceedings13/133-2013.pdf.
 
-| # | Pares | Con un real… y un predicho… | El backend dice | El puerto público dice |
-| --- | --- | --- | --- | --- |
-| 1 | 28 105 | real 181–290, predicho ≥ real + 110 | B | **C** |
-| 2 | 361 | real ≥ 240, predicho exactamente 180 | B | **D** |
-| 3 | 1 224 | real 59–70, predicho 71–180 | **D** | B |
+Con el puerto, este archivo **coincide en los 337 561 pares**. Con el SAS difiere en cuatro
+familias; tres son `<` contra `<=` en los umbrales exactos 70, 180 y 240, donde aquí ya se toma
+la lectura severa. La cuarta es de fondo y cambió este archivo:
 
-Casos concretos: (200, 320) para la 1, (300, 180) para la 2, (60, 120) para la 3.
+| Pares | Con un real… y un predicho… | Decía | Dice el SAS |
+| --- | --- | --- | --- |
+| 19 900 | real 291–489, predicho ≥ real + 110 | B | **C** |
 
-Qué es cada una:
+**El SAS tiene razón, y el motivo vale la pena saberlo.** El puerto acota la zona C con
+`real <= 290`, y 290 es el punto donde la recta `y = x + 110` se sale por arriba de una gráfica
+de 0 a 400 mg/dL —literalmente el `set_ylim([0, 400])` de su código, que además imprime un
+aviso si recibe valores de más de 400—. **No es una frontera clínica: es el borde del dibujo.**
+El rango válido de Glucy es 20 a 600 (RF-05), así que ese tope recortaba la zona C justo donde
+este proyecto todavía tiene datos. Un real de 300 predicho como 420 invita a sobrecorregir a lo
+grande, y salía contado como error benigno.
 
-1. El backend acota la zona C por arriba en 180 en lugar de 290. Un real de 200 predicho como
-   320 invita a sobrecorregir: eso es C, no un error benigno.
-2. El backend compara con `70 < p < 180` donde el puerto usa `70 ≤ p ≤ 180`. Un `<` donde va
-   un `<=`.
-3. Aquí es **el puerto el más indulgente**. Su condición para la zona D baja es
-   `p ≥ (7/5)·real + 110`, que con un real de 60 pide un predicho de 194, y como arriba de 180
-   ya manda la zona E, esa rama nunca se activa: un real de 60 predicho como 120 le sale **B**.
-   Pero un real de 60 predicho como 120 es literalmente «no detectar una hipoglucemia», que es
-   la definición de la zona D y **el evento central de Glucy**. La fórmula del puerto parece una
-   transcripción equivocada; el backend aquí tiene razón.
+## Una corrección a lo que decía este archivo
 
-**Este archivo toma en las tres la lectura más severa**: C en la 1, D en la 2 y D en la 3. Así
-que difiere del backend en las dos primeras y del puerto público en la tercera.
+La versión anterior de este comentario afirmaba que el puerto público contestaba **B** para un
+real de 59 a 70 con predicho de 71 a 180, por una condición `p >= (7/5)·real + 110`. Leído el
+archivo, la condición del puerto es `p >= (6/5)·real`, la misma de aquí, y contesta **D** igual
+que este archivo. No había tal discrepancia: la comparación anterior se hizo contra una
+transcripción equivocada del puerto.
 
-Importa porque B cuenta para el A+B que el proyecto promete en ≥ 95 %: cada vez que una
-formulación llama B a lo que otra llama C o D, **infla justo la cifra que decide si el modelo
-sirve**. Elegir la lectura severa es la decisión conservadora: si al cotejar contra el artículo
-original resultara que la indulgente es la correcta, el proyecto habría reportado una métrica
-**peor** que la real, que es el error que se puede defender. Al contrario, no.
+## Por qué importa
 
-La referencia del backend se corrige para las dos primeras, para que los dos repositorios den
-el mismo número.
+B cuenta para el A+B que el proyecto promete en ≥ 95 %: cada vez que una formulación llama B a
+lo que otra llama C o D, **infla justo la cifra que decide si el modelo sirve**. Donde las
+formulaciones públicas difieren, aquí se toma **la severa**. Es la decisión conservadora: si al
+cotejar contra el artículo original resultara que la indulgente es la correcta, el proyecto
+habría reportado una métrica **peor** que la real, que es el error que se puede defender. Al
+contrario, no.
 
-`tests/test_clarke.py` deja escritos los tres casos concretos, así que volver a cualquiera de
-las otras dos formulaciones hace fallar una prueba en lugar de mover la métrica en silencio.
+`tests/test_clarke.py` deja escritos los casos concretos, así que volver a cualquiera de las
+otras formulaciones hace fallar una prueba en lugar de mover la métrica en silencio.
 
-**Lo que sigue pendiente** es cotejar contra el artículo original, que no está accesible en
-línea sin suscripción. Mientras no se haga, el documento final tiene que decir qué formulación
-se usó, no solo «rejilla de Clarke». El puerto público con el que se cotejó:
-https://github.com/suetAndTie/ClarkeErrorGrid.
+**Lo que sigue pendiente** es cotejar contra el artículo original de Clarke et al. (1987), que
+no está accesible en línea sin suscripción. Mientras no se haga, el documento final tiene que
+decir **qué formulación se usó**, no solo «rejilla de Clarke».
 """
 
 from collections.abc import Sequence
@@ -98,7 +98,11 @@ def zona(real: float, predicho: float) -> str:
 
     # C: sobrecorregir. Arriba, predecir 110 mg/dL de más sobre un valor que no era bajo;
     # abajo, la cuña que empuja a tratar una glucosa que estaba en rango.
-    if (HIPO <= real <= 290 and predicho >= real + 110) or (
+    #
+    # Sin tope por arriba, a propósito: el `real <= 290` del puerto público es el punto donde
+    # la recta se sale de una gráfica de 400 mg/dL, no una frontera clínica, y aquí el rango
+    # llega a 600.
+    if (real >= HIPO and predicho >= real + 110) or (
         130 <= real <= HIPER and predicho <= (7 / 5) * real - 182
     ):
         return "C"

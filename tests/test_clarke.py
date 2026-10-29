@@ -9,17 +9,27 @@ import pytest
 
 from src.eval.clarke import HIPER, HIPO, ZONAS, porcentaje_ab, reparto, zona, zonas_de
 
-# --- Las dos divergencias verificadas, que son la razón de ser de este archivo ---------------
+# --- Las divergencias verificadas, que son la razón de ser de este archivo -------------------
 
 
-def test_zona_c_llega_hasta_290_y_no_se_corta_en_180():
-    """Real 200 con predicho 320 es **C**, no B.
+def test_zona_c_no_se_corta_en_180_ni_en_290():
+    """Real 200 con predicho 320 es **C**, y real 300 con predicho 420 también.
 
-    La implementación del backend topa la zona C en 180 mg/dL, y con eso 28 105 pares de
-    reales entre 181 y 290 que el port público llama C caen en B. B cuenta para el A+B que el
-    proyecto promete ≥ 95 %, así que el corte laxo infla justo la métrica principal.
+    Dos recortes del mismo borde, encontrados en dos cotejos distintos:
+
+    1. Topar la zona C en 180 mg/dL dejaba 28 105 pares de reales entre 181 y 290 contados
+       como B.
+    2. Toparla en 290 —que es lo que hace el puerto público— dejaba otros 19 900 pares con
+       reales de 291 a 489. Y ese 290 **no es una frontera clínica**: es el punto donde la
+       recta `y = x + 110` se sale de una gráfica de 0 a 400 mg/dL. El rango de Glucy llega a
+       600 (RF-05).
+
+    B cuenta para el A+B que el proyecto promete en ≥ 95 %, así que cada par mal clasificado
+    infla justo la métrica principal.
     """
     assert zona(200, 320) == "C"
+    assert zona(300, 420) == "C"
+    assert zona(489, 599) == "C"
 
 
 def test_predicho_exactamente_en_180_con_real_alto_es_d():
@@ -35,14 +45,14 @@ def test_predicho_exactamente_en_180_con_real_alto_es_d():
 def test_una_hipoglucemia_no_detectada_es_d_y_no_b():
     """Real 60 con predicho 120 es **D**, no B.
 
-    Es la tercera familia del cotejo y la única donde el puerto público es el indulgente: su
-    condición para la zona D baja pide `p >= (7/5)*real + 110`, que con un real de 60 son 194,
-    y arriba de 180 ya manda la zona E, así que esa rama nunca se activa y le salen B 1 224
-    pares con reales de 59 a 70.
+    Es literalmente «no detectar una hipoglucemia», que es la definición de la zona D y **el
+    evento central de Glucy**. Esta prueba existe para que ninguna corrección del resto de la
+    rejilla se la lleve de paso.
 
-    Pero un real de 60 predicho como 120 es literalmente «no detectar una hipoglucemia», que
-    es la definición de la zona D y **el evento central de Glucy**. La referencia del backend
-    aquí tiene razón y este repositorio la sigue.
+    (El comentario anterior de este archivo decía que el puerto público contestaba B aquí, por
+    una condición `p >= (7/5)*real + 110`. Leído su código, la condición es `p >= (6/5)*real`,
+    la misma de aquí, y contesta D: la comparación se había hecho contra una transcripción
+    equivocada del puerto.)
     """
     assert zona(60, 120) == "D"
     assert zona(59, 71) == "D"
