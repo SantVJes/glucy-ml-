@@ -1,0 +1,373 @@
+{
+  "modelo": "m1",
+  "version": "v0.1.0-demo",
+  "algoritmo": "xgboost",
+  "horizonte_min": 30,
+  "juego": "denso",
+  "caracteristicas": [
+    "mg_dl",
+    "rezago_5",
+    "rezago_10",
+    "rezago_15",
+    "rezago_30",
+    "rezago_60",
+    "derivada_1",
+    "derivada_2",
+    "media_30",
+    "media_60",
+    "cob",
+    "iob",
+    "hora_sin",
+    "hora_cos",
+    "dia_semana"
+  ],
+  "semilla": 42,
+  "hiperparametros": {
+    "n_estimators": 300,
+    "max_depth": 4,
+    "learning_rate": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "min_child_weight": 10,
+    "reg_lambda": 1.0,
+    "objective": "reg:squarederror",
+    "random_state": 42
+  },
+  "origen_datos": "sintetico",
+  "n_entrenamiento": 94837,
+  "n_prueba": 94837,
+  "sujetos_entrenamiento": [
+    "S00",
+    "S01",
+    "S02",
+    "S03",
+    "S04",
+    "S05",
+    "S06",
+    "S07",
+    "S08",
+    "S09",
+    "S10",
+    "S11"
+  ],
+  "sujetos_prueba": [],
+  "metricas": {
+    "n": 94837,
+    "horizonte_min": 30,
+    "rmse": 11.894411313618228,
+    "mae": 9.000743344570804,
+    "mard": 6.5014073505902985,
+    "clarke_ab": 99.43587418412645,
+    "clarke_reparto": {
+      "A": 96.83351434566677,
+      "B": 2.602359838459673,
+      "C": 0.0,
+      "D": 0.5641258158735515,
+      "E": 0.0
+    },
+    "sensibilidad_hipo": 48.07790876473603,
+    "falsas_alarmas": 21.242653232577666
+  },
+  "protocolo": "Validación cruzada dejando un sujeto fuera sobre 12 sujetos; las métricas son de esos pliegues. El artefacto que se publica se entrenó después con todos los sujetos, con los mismos hiperparámetros y la misma semilla.",
+  "metricas_por_sujeto": {
+    "S00": {
+      "n": 7884,
+      "horizonte_min": 30,
+      "rmse": 10.778951231999095,
+      "mae": 8.247497455242744,
+      "mard": 5.77599068873887,
+      "clarke_ab": 99.9873160832065,
+      "clarke_reparto": {
+        "A": 97.98325722983257,
+        "B": 2.004058853373922,
+        "C": 0.0,
+        "D": 0.012683916793505834,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 0.0,
+      "falsas_alarmas": 0.0
+    },
+    "S01": {
+      "n": 7892,
+      "horizonte_min": 30,
+      "rmse": 12.921142522397323,
+      "mae": 9.323396258926971,
+      "mard": 5.875602125775985,
+      "clarke_ab": 100.0,
+      "clarke_reparto": {
+        "A": 97.9726305119108,
+        "B": 2.0273694880892044,
+        "C": 0.0,
+        "D": 0.0,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": null,
+      "falsas_alarmas": 0.0
+    },
+    "S02": {
+      "n": 7911,
+      "horizonte_min": 30,
+      "rmse": 11.294377959410555,
+      "mae": 8.824838860359524,
+      "mard": 7.0514026345816925,
+      "clarke_ab": 98.81178106434079,
+      "clarke_reparto": {
+        "A": 96.06876501074453,
+        "B": 2.7430160535962584,
+        "C": 0.0,
+        "D": 1.1882189356592088,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 0.0,
+      "falsas_alarmas": 0.0
+    },
+    "S03": {
+      "n": 7912,
+      "horizonte_min": 30,
+      "rmse": 11.127871234165749,
+      "mae": 8.42475719827974,
+      "mard": 8.00912018100435,
+      "clarke_ab": 97.43427704752276,
+      "clarke_reparto": {
+        "A": 93.9711830131446,
+        "B": 3.4630940343781598,
+        "C": 0.0,
+        "D": 2.5657229524772496,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 55.07765830346475,
+      "falsas_alarmas": 16.936936936936938
+    },
+    "S04": {
+      "n": 7878,
+      "horizonte_min": 30,
+      "rmse": 14.581458835534532,
+      "mae": 10.985050771828986,
+      "mard": 9.013295456728219,
+      "clarke_ab": 98.01980198019803,
+      "clarke_reparto": {
+        "A": 89.15968519928916,
+        "B": 8.86011678090886,
+        "C": 0.0,
+        "D": 1.9801980198019802,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 0.7168458781362007,
+      "falsas_alarmas": 0.0
+    },
+    "S05": {
+      "n": 7912,
+      "horizonte_min": 30,
+      "rmse": 11.277218759259405,
+      "mae": 8.609981244109397,
+      "mard": 5.440604294977984,
+      "clarke_ab": 100.0,
+      "clarke_reparto": {
+        "A": 99.12790697674419,
+        "B": 0.872093023255814,
+        "C": 0.0,
+        "D": 0.0,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": null,
+      "falsas_alarmas": 0.0
+    },
+    "S06": {
+      "n": 7904,
+      "horizonte_min": 30,
+      "rmse": 14.018190805447556,
+      "mae": 11.041677410496392,
+      "mard": 6.385347700785067,
+      "clarke_ab": 100.0,
+      "clarke_reparto": {
+        "A": 98.77277327935222,
+        "B": 1.2272267206477734,
+        "C": 0.0,
+        "D": 0.0,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": null,
+      "falsas_alarmas": 0.0
+    },
+    "S07": {
+      "n": 7918,
+      "horizonte_min": 30,
+      "rmse": 11.583209544247783,
+      "mae": 8.571911004806715,
+      "mard": 5.319523078669879,
+      "clarke_ab": 100.0,
+      "clarke_reparto": {
+        "A": 98.86334933063905,
+        "B": 1.1366506693609497,
+        "C": 0.0,
+        "D": 0.0,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": null,
+      "falsas_alarmas": 0.0
+    },
+    "S08": {
+      "n": 7889,
+      "horizonte_min": 30,
+      "rmse": 11.200981495492128,
+      "mae": 8.665627784066546,
+      "mard": 6.4849028112211995,
+      "clarke_ab": 99.84788946634555,
+      "clarke_reparto": {
+        "A": 96.85638230447458,
+        "B": 2.9915071618709597,
+        "C": 0.0,
+        "D": 0.15211053365445557,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 0.0,
+      "falsas_alarmas": 0.0
+    },
+    "S09": {
+      "n": 7926,
+      "horizonte_min": 30,
+      "rmse": 11.646145038871554,
+      "mae": 8.553789086333435,
+      "mard": 5.317000021000493,
+      "clarke_ab": 100.0,
+      "clarke_reparto": {
+        "A": 98.82664647993944,
+        "B": 1.1733535200605603,
+        "C": 0.0,
+        "D": 0.0,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": null,
+      "falsas_alarmas": 0.0
+    },
+    "S10": {
+      "n": 7909,
+      "horizonte_min": 30,
+      "rmse": 10.767404731814688,
+      "mae": 8.346020902931985,
+      "mard": 5.707564320821419,
+      "clarke_ab": 99.94942470603111,
+      "clarke_reparto": {
+        "A": 98.29308382854975,
+        "B": 1.6563408774813504,
+        "C": 0.0,
+        "D": 0.05057529396889619,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 0.0,
+      "falsas_alarmas": 0.0
+    },
+    "S11": {
+      "n": 7902,
+      "horizonte_min": 30,
+      "rmse": 10.767785778413892,
+      "mae": 8.422253075022542,
+      "mard": 7.647223464385481,
+      "clarke_ab": 99.17742343710454,
+      "clarke_reparto": {
+        "A": 96.07694254619084,
+        "B": 3.1004808909136927,
+        "C": 0.0,
+        "D": 0.8225765628954695,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 70.78986587183309,
+      "falsas_alarmas": 25.0788643533123
+    }
+  },
+  "metricas_lineas_base": {
+    "persistencia": {
+      "n": 94837,
+      "horizonte_min": 30,
+      "rmse": 14.92979946375724,
+      "mae": 10.968634604637431,
+      "mard": 7.785731590999667,
+      "clarke_ab": 99.48543290066114,
+      "clarke_reparto": {
+        "A": 94.00866750318968,
+        "B": 5.476765397471451,
+        "C": 0.0,
+        "D": 0.5145670993388657,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 55.7662737057919,
+      "falsas_alarmas": 44.29083461341526
+    },
+    "extrapolacion_lineal": {
+      "n": 92928,
+      "horizonte_min": 30,
+      "rmse": 19.75964018527102,
+      "mae": 13.509400826446281,
+      "mard": 9.400775853794109,
+      "clarke_ab": 99.65887568870524,
+      "clarke_reparto": {
+        "A": 89.3810261707989,
+        "B": 10.277849517906336,
+        "C": 0.0559573002754821,
+        "D": 0.28516701101928377,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 78.34294703723126,
+      "falsas_alarmas": 55.7070856804032
+    },
+    "ridge": {
+      "n": 94837,
+      "horizonte_min": 30,
+      "rmse": 13.18169838623706,
+      "mae": 9.627864395128174,
+      "mard": 6.95165334265719,
+      "clarke_ab": 99.2123327393317,
+      "clarke_reparto": {
+        "A": 95.17066123981147,
+        "B": 4.04167149952023,
+        "C": 0.0,
+        "D": 0.7876672606683046,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 42.64479753972322,
+      "falsas_alarmas": 30.31825795644891
+    },
+    "bosque": {
+      "n": 94837,
+      "horizonte_min": 30,
+      "rmse": 11.957272214583744,
+      "mae": 9.005543199245041,
+      "mard": 6.5396267188536195,
+      "clarke_ab": 99.36417221126776,
+      "clarke_reparto": {
+        "A": 96.43388129105729,
+        "B": 2.9302909202104663,
+        "C": 0.0,
+        "D": 0.6358277887322459,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 51.51204510507432,
+      "falsas_alarmas": 22.870299309286263
+    },
+    "lstm": {
+      "n": 94837,
+      "horizonte_min": 30,
+      "rmse": 14.579889303999055,
+      "mae": 11.094198395598145,
+      "mard": 8.460655874692462,
+      "clarke_ab": 98.10095216002193,
+      "clarke_reparto": {
+        "A": 92.04635321657159,
+        "B": 6.054598943450341,
+        "C": 0.0,
+        "D": 1.8990478399780677,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 1.5376729882111737,
+      "falsas_alarmas": 6.25
+    }
+  },
+  "creado_utc": "2026-10-29T13:30:17+00:00",
+  "entorno": {
+    "python": "3.13.17",
+    "sistema": "Linux x86_64",
+    "xgboost": "3.4.1",
+    "scikit-learn": "1.9.1"
+  },
+  "version_del_manifiesto": 1
+}
