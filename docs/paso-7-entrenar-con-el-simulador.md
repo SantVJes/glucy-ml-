@@ -244,6 +244,41 @@ A diferencia del generador de juguete, aquí el pico llega **cuando tiene que ll
 modelo UVA/Padova incluye vaciado gástrico y absorción intestinal. El objetivo «cuándo» es el
 que más gana al cambiar de origen de datos.
 
+## Core ML, y las dos cosas que la app tiene que respetar
+
+Los dos artefactos están convertidos y la traducción es **fiel**: contra XGBoost la diferencia
+máxima en 2 000 filas es de 0.000214 mg/dL en M-1 y 0.000229 en M-2, con una tolerancia de
+0.001. Eso descarta el error que no se vería de otra forma, porque un árbol traducido al revés
+no falla: predice mal.
+
+La comprobación saca además dos requisitos para `glucy-ios`, y los dos son del tipo que se
+descubre en producción si no se escriben ahora:
+
+1. **Las características van como `Float` de 32 bits, no como `Double`.** Los umbrales del
+   árbol son de 32 bits y XGBoost compara contra ellos con esa misma precisión. Mandando doble
+   precisión la predicción se desvía hasta **1.43 mg/dL** en M-1 (449 de 2 000 filas) y hasta
+   **3.46 mg/dL** en M-2 (662 filas). No revienta nada: da otro número.
+2. **Hay que comprobar en el iPhone físico que Core ML respeta la marca de valor que falta.**
+   De los 4 415 cortes del bosque de M-1, **472 mandan el faltante al hijo verdadero**. Si el
+   teléfono compara el `NaN` como cualquier número, la predicción se desvía hasta **21.6 mg/dL**
+   en M-1 y **36.5** en M-2. Esto no se puede comprobar aquí y queda como prueba de dispositivo.
+
+El informe de cada conversión queda junto al artefacto, en
+`artifacts/m1-v0.1.0-simulador-coreml.json`, con los dos números y el entorno en que se midió.
+
+## El cuello de botella que apareció de paso
+
+Convertir a Core ML no arrancaba: veinte minutos sin imprimir nada. No era la conversión, era
+armar las 2 000 filas de comprobación. `_mas_cercana` recorría la serie entera y se llama seis
+veces por fila sobre una historia que crece hasta las 8 064 lecturas, así que el coste era
+cuadrático: **68 segundos por sujeto**, veinte minutos por los dieciocho, tres veces por tanda.
+
+Con búsqueda binaria son **1.3 segundos por sujeto**, 56 veces menos, y las filas salen
+idénticas valor por valor con los `NaN` incluidos. Está aparte, en su propio PR, porque no es
+un resultado de este paso; pero sí es la razón por la que este paso tardó lo que tardó, y el
+reporte puede decir cuánto cuesta una tanda completa con el número de ahora y no con el de
+antes.
+
 ## Lo que este paso no hace
 
 - **No reemplaza a OhioT1DM.** El manifiesto sale con `origen_datos: "simulador"` y
@@ -255,9 +290,11 @@ que más gana al cambiar de origen de datos.
 - **No busca hiperparámetros.** El aviso del guion lo dice en el orden correcto: antes de tocar
   hiperparámetros, revisar las características. Con la comparación de arriba mal hecha, ajustar
   habría sido ajustar hacia un número que no medía lo que parecía medir.
-- **No conecta Core ML en la app.** `glucy-ios` no tiene todavía la inferencia en el
-  dispositivo; su pantalla de inicio sigue diciendo «Aún no puedo proyectar». Entrenar el
-  modelo no hace que la app prediga, y eso es trabajo aparte.
+- **No conecta Core ML en la app.** El `.mlmodel` existe y está comprobado, pero `glucy-ios`
+  no tiene todavía la inferencia en el dispositivo: su pantalla de inicio sigue diciendo «Aún
+  no puedo proyectar». Convertir el modelo no hace que la app prediga, y eso es trabajo aparte.
+- **No prueba el faltante en el iPhone.** Es la única comprobación de la conversión que no se
+  puede hacer en esta máquina, y la que más mg/dL mueve si falla.
 
 ## Órdenes para comprobar este paso
 
@@ -267,5 +304,7 @@ python -m src.datos.simulador --dias 28 --salida data/simulador
 python -m src.train.train_m1 --datos simulador --sin-lstm
 python -m src.train.train_m2 --datos simulador --sin-lstm
 python -m src.train.train_m3 --datos simulador
+python -m src.export.to_coreml --artefacto artifacts/m1-v0.1.0-simulador.json \
+  --datos simulador
 python -m pytest tests/test_simulador.py tests/test_umbral_de_aviso.py -q
 ```
