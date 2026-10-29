@@ -1,6 +1,6 @@
 {
-  "modelo": "m1",
-  "version": "v0.1.0-simulador",
+  "modelo": "m2",
+  "version": "v0.2.0-simulador",
   "caracteristicas": [
     "mg_dl",
     "rezago_5",
@@ -23,14 +23,14 @@
   "comprobacion": {
     "n": 2000,
     "n_filas_con_faltantes": 12,
-    "max_diferencia": 0.000213623046875,
-    "media_diferencia": 3.500747698126361e-05,
-    "max_diferencia_con_doble_precision": 1.4333953857421875,
-    "filas_que_cambian_con_doble_precision": 449,
-    "max_diferencia_ignorando_faltantes": 21.620994567871094,
+    "max_diferencia": 0.000244140625,
+    "media_diferencia": 4.8263551434502006e-05,
+    "max_diferencia_con_doble_precision": 2.78424072265625,
+    "filas_que_cambian_con_doble_precision": 621,
+    "max_diferencia_ignorando_faltantes": 35.940589904785156,
     "filas_que_cambian_mas_de_lo_que_importa": 12,
-    "cortes": 4415,
-    "cortes_con_faltante_al_verdadero": 472
+    "cortes": 4419,
+    "cortes_con_faltante_al_verdadero": 356
   },
   "la_traduccion_es_fiel": true,
   "hay_que_comprobar_el_faltante_en_el_iphone": true,

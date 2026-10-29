@@ -23,6 +23,7 @@ import math
 from bisect import bisect_left, bisect_right
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 
 from src.features.features import (
     CARACTERISTICAS_DENSAS,
@@ -46,6 +47,11 @@ TOLERANCIA_OBJETIVO_MIN = 5.0
 # Minutos que se consideran para los promedios móviles.
 VENTANAS_MEDIA_MIN = (30, 60)
 
+# Los dos parámetros de la curva de insulina, con los mismos valores que
+# `referencia/reglas_clinicas.py` del backend. Copiados, no derivados.
+DURACION_INSULINA_DEFECTO_H = 5.0
+PICO_INSULINA_MIN = 75.0
+
 SEGUNDOS_POR_MINUTO = 60
 
 
@@ -65,6 +71,17 @@ class Fila:
     @property
     def orden(self) -> float:
         return self.ts_segundos
+
+
+def _minutos_del_dia(ts: datetime) -> float:
+    """Minutos transcurridos del día, **con los segundos**, leídos de la propia marca de tiempo.
+
+    Con segundos porque así lo hace `_hora_ciclica` del pipeline del backend, que es la
+    autoridad; sin ellos, una muestra que no cae en el minuto exacto da otro ángulo que en
+    producción. Y leídos de `ts` y no del epoch: `(epoch % 86400)` da los minutos en UTC, que
+    solo coinciden con los de la persona si el proceso corre en su zona.
+    """
+    return ts.hour * 60 + ts.minute + ts.second / 60
 
 
 def _minutos(a: float, b: float) -> float:
@@ -131,28 +148,62 @@ def cob(comidas: Sequence[Evento], ahora_seg: float, absorcion_min: float = 180)
     return total
 
 
-def iob(dosis: Sequence[Evento], ahora_seg: float, duracion_h: float = 5.0) -> float:
-    """Insulina que sigue activa, con la curva del perfil: pico alrededor de 75 min.
+def fraccion_insulina_activa(
+    minutos: float,
+    duracion_h: float = DURACION_INSULINA_DEFECTO_H,
+    pico_min: float = PICO_INSULINA_MIN,
+) -> float:
+    """Fracción de una dosis que sigue activa a los `minutos` indicados.
 
-    La fracción activa se aproxima con la misma forma que usa el backend: sube hasta el pico y
-    baja hasta cero al terminar la duración de acción. Aquí **no se calcula ninguna dosis**
-    (regla 7 del proyecto): se contabiliza lo que la persona dijo haberse aplicado.
+    **Copiada de `fraccion_insulina_activa` de `referencia/reglas_clinicas.py` del backend**,
+    que es la autoridad sobre las reglas clínicas y la que importa el pipeline que alimenta al
+    modelo en producción (`app/services/pipeline/caracteristicas.py` lo dice en su encabezado:
+    «COB e IOB salen de la referencia»). Los dos repositorios no se pueden importar entre sí,
+    así que se copia y `tests/test_iob.py` fija los valores uno por uno.
+
+    Aquí había antes una aproximación lineal —bajar hasta 0.75 en el pico y de ahí recta hasta
+    cero— con un docstring que decía que era «la misma forma que usa el backend». No lo era, y
+    la diferencia no es de redondeo: a los 180 minutos la curva de verdad deja **16 %** de la
+    dosis activa y la recta decía **40 %**. Con un bolo de 6 UI, el modelo estaba aprendiendo
+    hasta 1.45 UI de insulina que no existen, siempre de más a partir de la primera hora.
+
+    Es el error contra el que avisa el encabezado de `features.py`: el modelo no falla, aprende
+    una columna que en producción nadie le va a dar nunca, y nadie se entera.
     """
     duracion_min = duracion_h * 60
-    pico_min = 75.0
+    if minutos <= 0:
+        return 1.0
+    if minutos >= duracion_min:
+        return 0.0
+    tau = pico_min * (1 - pico_min / duracion_min) / (1 - 2 * pico_min / duracion_min)
+    a = 2 * tau / duracion_min
+    s = 1 / (1 - a + (1 + a) * math.exp(-duracion_min / tau))
+    factor = minutos**2 / (tau * duracion_min * (1 - a)) - minutos / tau - 1
+    restante = 1 - s * (1 - a) * (factor * math.exp(-minutos / tau) + 1)
+    return min(1.0, max(0.0, restante))
+
+
+def iob(
+    dosis: Sequence[Evento], ahora_seg: float, duracion_h: float = DURACION_INSULINA_DEFECTO_H
+) -> float:
+    """Insulina que sigue activa, con la curva de la referencia.
+
+    **Solo cuenta el bolo**, igual que el backend: la basal no se acumula como insulina activa
+    en este modelo. Quien llama filtra; `filas_de` pasa `eventos["bolus"]`.
+
+    Aquí **no se calcula ninguna dosis** (regla 7 del proyecto): se contabiliza lo que la
+    persona dijo haberse aplicado.
+    """
     total = 0.0
     for d in dosis:
         if d.valor is None:
             continue
         t = _minutos(ahora_seg, d.ts.timestamp())
-        if t < 0 or t >= duracion_min:
+        # Una dosis futura no cuenta, y pasada la duración de acción tampoco. La referencia
+        # devolvería 1.0 para t negativo, que aquí sería contar una dosis que no se ha puesto.
+        if t < 0 or t >= duracion_h * 60:
             continue
-        if t <= pico_min:
-            # Antes del pico casi nada se ha consumido: la fracción activa baja despacio.
-            fraccion = 1 - 0.25 * (t / pico_min)
-        else:
-            fraccion = 0.75 * (1 - (t - pico_min) / (duracion_min - pico_min))
-        total += d.valor * max(fraccion, 0.0)
+        total += d.valor * fraccion_insulina_activa(t, duracion_h)
     return total
 
 
@@ -185,16 +236,21 @@ def _derivadas(actual: float, rezagos: dict[str, float]) -> dict[str, float]:
 def _medias(historia: Sequence[Lectura], ahora_seg: float) -> dict[str, float]:
     """Promedios móviles de 30 y 60 minutos. Sin lecturas en la ventana, `NaN`.
 
-    La ventana se recorta por bisección y no filtrando la historia: en la última fila de un
-    sujeto de 28 días, filtrar miraba 8 064 lecturas para promediar las doce que caen en una
-    hora. Exige la serie ordenada, igual que `_mas_cercana`.
+    La ventana es **`(desde, ahora]`**: abierta por abajo y cerrada por arriba, como la de
+    `_media` del pipeline del backend, que es la autoridad. Con el borde inferior incluido,
+    `media_30` sobre una serie de cinco minutos promediaba siete lecturas donde producción
+    promedia seis, y en una subida eso mueve el promedio unos cuantos mg/dL en cada fila.
+
+    Se recorta por bisección y no filtrando la historia: en la última fila de un sujeto de 28
+    días, filtrar miraba 8 064 lecturas para promediar las doce que caen en una hora. Exige la
+    serie ordenada, igual que `_mas_cercana`.
     """
     clave = lambda f: f.ts.timestamp()  # noqa: E731
     hasta = bisect_right(historia, ahora_seg, key=clave)
     valores: dict[str, float] = {}
     for minutos in VENTANAS_MEDIA_MIN:
         desde = ahora_seg - minutos * SEGUNDOS_POR_MINUTO
-        inicio = bisect_left(historia, desde, hi=hasta, key=clave)
+        inicio = bisect_right(historia, desde, hi=hasta, key=clave)
         dentro = [f.mg_dl for f in historia[inicio:hasta]]
         valores[f"media_{minutos}"] = sum(dentro) / len(dentro) if dentro else FALTA
     return valores
@@ -218,7 +274,7 @@ def caracteristicas_densas(
     ahora = historia[-1]
     ahora_seg = ahora.ts.timestamp()
     rezagos = _rezagos(historia, ahora_seg)
-    sin, cos = hora_ciclica(ahora.ts.hour * 60 + ahora.ts.minute)
+    sin, cos = hora_ciclica(_minutos_del_dia(ahora.ts))
 
     fila: dict[str, float] = {
         "mg_dl": ahora.mg_dl,
@@ -261,7 +317,13 @@ def caracteristicas_dispersas(
     """
     ultima_comida = max(comidas, key=lambda c: c.ts, default=None)
     ultima_dosis = max(dosis, key=lambda d: d.ts, default=None)
-    sin, cos = hora_ciclica((ahora_seg % 86400) / SEGUNDOS_POR_MINUTO)
+    # La hora del **instante que se predice**, no la de la última lectura, que en modo sin
+    # sensor puede ser de hace horas. Es lo que hace `vector_disperso` del backend, que usa
+    # `punto` y no `ultima`. `fromtimestamp` devuelve la misma hora de pared que `.timestamp()`
+    # consumió, así que el viaje de ida y vuelta es exacto; el `(ahora_seg % 86400)` que había
+    # antes daba los minutos en UTC, que solo coinciden si el proceso corre en la zona de la
+    # persona. Las marcas de tiempo con zona son del backend, que es quien las tiene.
+    sin, cos = hora_ciclica(_minutos_del_dia(datetime.fromtimestamp(ahora_seg)))
 
     fila: dict[str, float] = {
         "mg_dl": ultima.mg_dl,
