@@ -293,3 +293,67 @@ def test_el_juego_denso_que_sale_cuadra_con_la_tupla_del_contrato():
     fila = caracteristicas_densas(serie(range(100, 120)), [evento(10, 40.0)], [])
     assert sorted(fila) == sorted(CARACTERISTICAS_DENSAS)
     assert len(a_vector(fila, "denso")) == len(CARACTERISTICAS_DENSAS)
+
+
+# --- La traducción de recorrido lineal a búsqueda binaria -----------------------------------
+#
+# `_mas_cercana` recorría la serie entera y ahora mira los dos vecinos del punto de inserción.
+# Una traducción así **no falla, devuelve otra lectura**: el modelo se entrena con otros
+# rezagos y las métricas salen distintas sin que nada reviente. Estas tres pruebas fijan lo
+# único que la bisección puede cambiar en silencio.
+
+
+def lectura_en(minutos, mg_dl, sujeto="S00"):
+    return Lectura(
+        sujeto=sujeto,
+        ts=ARRANQUE + timedelta(minutes=minutos),
+        mg_dl=float(mg_dl),
+        del_sensor=True,
+    )
+
+
+def test_un_empate_exacto_se_queda_con_la_lectura_mas_antigua():
+    """Dos lecturas a la misma distancia del instante pedido: gana la de antes.
+
+    Lo hacía el recorrido lineal sin que nadie lo decidiera, porque comparaba con `<` y pasaba
+    por la serie en orden. La bisección mira el vecino derecho después del izquierdo, así que
+    sin cuidado el empate se habría volteado y los rezagos de las filas con hueco habrían
+    cambiado de valor. No es que la antigua sea mejor: es que cambiarlo sin querer habría
+    movido números del reporte sin que ninguna prueba lo notara.
+    """
+    # Historia con un hueco alrededor de los 30 minutos antes de «ahora», que es el minuto 60.
+    historia = [
+        lectura_en(0, 100),
+        lectura_en(27.5, 111),
+        lectura_en(32.5, 222),
+        lectura_en(60, 150),
+    ]
+    fila = caracteristicas_densas(historia, [], [])
+    assert fila["rezago_30"] == 111.0
+
+
+def test_el_objetivo_nunca_es_la_propia_fila():
+    """Con un horizonte corto, la lectura más cercana a «ahora + horizonte» es «ahora».
+
+    Y «ahora» ya está dentro de la fila, en `mg_dl`: etiquetarla además como objetivo le
+    regalaría al modelo la respuesta. Lo que impedía eso era pedir el objetivo sobre
+    `usables[i + 1 :]`; ahora lo impide el parámetro `desde`, y la garantía es la misma solo si
+    el índice está bien. Un error de uno aquí daría un RMSE casi perfecto y falso.
+    """
+    filas = filas_densas(serie([100, 120, 140, 160]), [], [], horizonte_min=1)
+    assert filas, "con tolerancia de 5 min el objetivo a 1 min tiene que existir"
+    for fila, siguiente in zip(filas, [120, 140, 160], strict=False):
+        assert fila.objetivo == siguiente
+        assert fila.caracteristicas["mg_dl"] != fila.objetivo
+
+
+def test_una_serie_desordenada_se_rechaza_en_lugar_de_dar_filas_mal():
+    """La bisección **exige** orden temporal, y antes era solo una línea de comentario.
+
+    Sobre una serie desordenada una búsqueda binaria no revienta: devuelve la lectura
+    equivocada. Así que la comprobación que ya hacía `filas_densas` pasa a ser la condición de
+    la que depende la corrección, y por eso ahora tiene prueba.
+    """
+    desordenada = [lectura_en(0, 100), lectura_en(30, 140), lectura_en(10, 120)]
+    with pytest.raises(ValueError, match="ordenada"):
+        filas_densas(desordenada, [], [], horizonte_min=30)

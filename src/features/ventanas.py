@@ -20,6 +20,7 @@ objetivo a 52 minutos etiquetado como «30 minutos» es ruido con apariencia de 
 """
 
 import math
+from bisect import bisect_left, bisect_right
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -72,20 +73,38 @@ def _minutos(a: float, b: float) -> float:
 
 
 def _mas_cercana(
-    lecturas: Sequence[Lectura], objetivo_seg: float, tolerancia_min: float
+    lecturas: Sequence[Lectura], objetivo_seg: float, tolerancia_min: float, desde: int = 0
 ) -> Lectura | None:
     """La lectura más cercana a un instante, o `None` si ninguna cae dentro de la tolerancia.
 
-    Búsqueda lineal a propósito: con ocho semanas por sujeto el conjunto entra en memoria y una
-    búsqueda binaria aquí ahorraría segundos a cambio de un error de índice que nadie vería.
-    Si algún día estorba, se cambia con las pruebas puestas.
+    **Búsqueda binaria, y la serie tiene que venir ordenada**, que es lo que comprueba
+    `filas_densas` antes de llamar aquí. Estando ordenada, la más cercana a un instante solo
+    puede ser uno de los dos vecinos del punto de inserción, así que no hace falta recorrerla.
+
+    Aquí decía que una búsqueda lineal «ahorraría segundos». Medido: armar las filas de un
+    sujeto de 28 días (8 064 lecturas) tardaba **68 segundos**, y esta función se llama seis
+    veces por fila sobre una historia que crece hasta las 8 064 lecturas. No eran segundos,
+    eran veinte minutos por corrida en los dieciocho sujetos, tres veces (M-1, M-2, M-3), y
+    convertir a Core ML era inviable por este motivo y nada más.
+
+    `desde` evita el otro coste escondido: quien busca el objetivo necesita «solo lo que viene
+    después de la fila i», y pedirlo con `lecturas[i + 1 :]` copiaba la cola en cada fila.
     """
+    n = len(lecturas)
+    if desde >= n:
+        return None
+    # `key` se evalúa solo en los pasos de la bisección, no en toda la serie.
+    corte = bisect_left(lecturas, objetivo_seg, lo=desde, key=lambda f: f.ts.timestamp())
     mejor: Lectura | None = None
     mejor_distancia = math.inf
-    for lectura in lecturas:
-        distancia = abs(_minutos(lectura.ts.timestamp(), objetivo_seg))
+    # El izquierdo primero y con `<`, para que un empate exacto se resuelva igual que cuando
+    # esto recorría la serie en orden: se quedaba con la primera, o sea la más antigua.
+    for indice in (corte - 1, corte):
+        if indice < desde or indice >= n:
+            continue
+        distancia = abs(_minutos(lecturas[indice].ts.timestamp(), objetivo_seg))
         if distancia < mejor_distancia:
-            mejor, mejor_distancia = lectura, distancia
+            mejor, mejor_distancia = lecturas[indice], distancia
     if mejor is None or mejor_distancia > tolerancia_min:
         return None
     return mejor
@@ -164,11 +183,19 @@ def _derivadas(actual: float, rezagos: dict[str, float]) -> dict[str, float]:
 
 
 def _medias(historia: Sequence[Lectura], ahora_seg: float) -> dict[str, float]:
-    """Promedios móviles de 30 y 60 minutos. Sin lecturas en la ventana, `NaN`."""
+    """Promedios móviles de 30 y 60 minutos. Sin lecturas en la ventana, `NaN`.
+
+    La ventana se recorta por bisección y no filtrando la historia: en la última fila de un
+    sujeto de 28 días, filtrar miraba 8 064 lecturas para promediar las doce que caen en una
+    hora. Exige la serie ordenada, igual que `_mas_cercana`.
+    """
+    clave = lambda f: f.ts.timestamp()  # noqa: E731
+    hasta = bisect_right(historia, ahora_seg, key=clave)
     valores: dict[str, float] = {}
     for minutos in VENTANAS_MEDIA_MIN:
         desde = ahora_seg - minutos * SEGUNDOS_POR_MINUTO
-        dentro = [f.mg_dl for f in historia if desde <= f.ts.timestamp() <= ahora_seg]
+        inicio = bisect_left(historia, desde, hi=hasta, key=clave)
+        dentro = [f.mg_dl for f in historia[inicio:hasta]]
         valores[f"media_{minutos}"] = sum(dentro) / len(dentro) if dentro else FALTA
     return valores
 
@@ -287,18 +314,19 @@ def filas_densas(
     if horizonte_min <= 0:
         raise ValueError("el horizonte debe ser de al menos un minuto")
     usables = [f for f in serie if f.del_sensor] if solo_sensor else list(serie)
-    if any(
-        b.ts < a.ts for a, b in zip(usables, usables[1:], strict=False)
-    ):  # pragma: no cover - lo garantiza el lector
+    # Era una red de seguridad del lector; con la búsqueda binaria de `_mas_cercana` es la
+    # condición de la que depende que los rezagos sean los correctos, así que tiene prueba.
+    if any(b.ts < a.ts for a, b in zip(usables, usables[1:], strict=False)):
         raise ValueError("la serie tiene que venir ordenada en el tiempo")
 
     filas: list[Fila] = []
     for i, ahora in enumerate(usables):
         ahora_seg = ahora.ts.timestamp()
         objetivo = _mas_cercana(
-            usables[i + 1 :],
+            usables,
             ahora_seg + horizonte_min * SEGUNDOS_POR_MINUTO,
             TOLERANCIA_OBJETIVO_MIN,
+            desde=i + 1,
         )
         if objetivo is None:
             continue
