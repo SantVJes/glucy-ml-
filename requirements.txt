@@ -1,0 +1,24 @@
+# Dependencias del entrenamiento y la evaluación.
+#
+# **La integración continua NO instala este archivo, y es a propósito.** Instala solo
+# `requirements-dev.txt` (pytest y ruff), porque todo lo de `src/eval`, `src/features` y
+# `src/ingest` está escrito con la biblioteca estándar: así las pruebas que sostienen las
+# reglas clínicas corren en segundos y no dependen de que una rueda de 200 MB compile en el
+# corredor. Lo que necesita estas dependencias es el entrenamiento, que no corre en CI.
+#
+# Cotas mínimas y no versiones exactas: el artefacto se versiona con su semilla, sus
+# hiperparámetros y sus métricas al lado (eso es lo que hace repetible una corrida), no
+# congelando el entorno entero.
+
+xgboost>=2.1          # M-1, M-2 y M-3
+scikit-learn>=1.5     # líneas base Ridge y Random Forest, y las utilidades de métrica
+shap>=0.46            # las cinco contribuciones que consume el servicio de explicación
+pandas>=2.2           # armado de las tablas de características
+numpy>=1.26
+matplotlib>=3.9       # la rejilla de Clarke dibujada en el cuaderno de evaluación
+coremltools>=8.0      # conversión del artefacto para que la inferencia corra en el teléfono
+
+# La línea base LSTM del protocolo necesita además un marco de redes (PyTorch o Keras). Se
+# agrega en el paso que la implemente, para no arrastrar aquí una dependencia enorme antes de
+# saber si hace falta: con doce sujetos puede que no se justifique, y eso se decide con los
+# datos delante.
