@@ -370,15 +370,25 @@ def _filas_de_comprobacion(args: argparse.Namespace, manifiesto) -> list[list[fl
 
 
 def main() -> None:
+    # Dentro de la función, como el resto de lo que viene de `src.train.comun`: ese módulo
+    # arrastra xgboost y este tiene que poder importarse sin él (la integración continua no
+    # instala las dependencias del entrenamiento).
+    from src.train.comun import CARPETA_SIMULADOR
+
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--artefacto", required=True, help="el .json del manifiesto a convertir")
     p.add_argument(
         "--datos",
         default="ohiot1dm",
-        choices=("ohiot1dm", "sintetico"),
+        choices=("ohiot1dm", "simulador", "sintetico"),
         help="de dónde salen las filas con las que se comprueba la conversión",
     )
     p.add_argument("--carpeta", default="data/ohiot1dm", help="carpeta de los XML de OhioT1DM")
+    p.add_argument(
+        "--carpeta-simulador",
+        default=CARPETA_SIMULADOR,
+        help="carpeta con los JSON que dejó `python -m src.datos.simulador`",
+    )
     p.add_argument("--sujetos", type=int, default=3)
     p.add_argument("--dias", type=int, default=7)
     p.add_argument("--semilla", type=int, default=42)
