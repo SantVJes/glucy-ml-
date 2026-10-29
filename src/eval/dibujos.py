@@ -83,12 +83,15 @@ def rejilla_de_clarke(
     hacia arriba, porque una rejilla dibujada hasta 600 con datos que no pasan de 300 deja los
     puntos apelotonados en una esquina y no se ve nada.
     """
-    plt = _plt()
+    # Lo que se puede rechazar sin matplotlib se rechaza antes de importarlo: así la prueba
+    # de que truena corre también donde no está instalado, que es la integración continua.
+    if not reales:
+        raise ValueError("no hay pares que dibujar")
+
     from src.eval.clarke import reparto
     from src.eval.metrics import mae
 
-    if not reales:
-        raise ValueError("no hay pares que dibujar")
+    plt = _plt()
 
     tope = hasta or min(GLUCOSA_MAX, 50 * (int(max(max(reales), max(predichos))) // 50 + 2))
     malla = list(range(GLUCOSA_MIN, tope + 1, PASO_DE_LA_MALLA))
@@ -247,9 +250,10 @@ def error_por_origen(mae_por_origen: dict[str, float], *, n_por_origen: dict[str
     sensor**, que es el usuario con menos recursos (riesgo R-2). Un promedio único lo esconde;
     esta figura lo pone enfrente.
     """
-    plt = _plt()
     if not mae_por_origen:
         raise ValueError("no hay orígenes que dibujar")
+
+    plt = _plt()
 
     ordenados = sorted(mae_por_origen.items(), key=lambda par: -par[1])
     etiquetas = [f"{origen}\nn = {n_por_origen.get(origen, 0)}" for origen, _ in ordenados]
@@ -276,9 +280,10 @@ def contra_las_lineas_base(rmse_por_modelo: dict[str, float], *, el_del_proyecto
     marca con una línea vertical: lo que quede a su derecha está perdiendo contra «dentro de
     media hora será igual que ahora».
     """
-    plt = _plt()
     if el_del_proyecto not in rmse_por_modelo:
         raise ValueError(f"{el_del_proyecto} no está entre los modelos: {sorted(rmse_por_modelo)}")
+
+    plt = _plt()
 
     ordenados = sorted(rmse_por_modelo.items(), key=lambda par: par[1])
     etiquetas = [nombre for nombre, _ in ordenados]

@@ -13,15 +13,16 @@ proyecto, y esas son tres:
 3. **Que una figura vacía truene en lugar de salir en blanco.** Un eje sin nada se imprime
    igual de bien que uno con datos.
 
-Saltan enteras si matplotlib no está: la integración continua instala solo pytest y ruff.
+**La prueba 01 corre siempre**, también en la integración continua, que instala solo pytest y
+ruff. Dónde cae cada letra se decide con `zona()` y un recorrido sobre una malla: es aritmética,
+no dibujo, y es justo lo que salió mal. Las que sí construyen una figura saltan si matplotlib no
+está, y por eso `src/eval/dibujos.py` no lo importa en su cabecera.
 """
 
 import pytest
 
-pytest.importorskip("matplotlib")
-
-from src.eval.clarke import ZONAS, zona  # noqa: E402
-from src.eval.dibujos import (  # noqa: E402
+from src.eval.clarke import ZONAS, zona
+from src.eval.dibujos import (
     GLUCOSA_MAX,
     _donde_rotular,
     contra_las_lineas_base,
@@ -34,6 +35,11 @@ from src.eval.dibujos import (  # noqa: E402
 PARES = [(80 + i % 120, 85 + i % 130) for i in range(300)]
 REALES = [r for r, _ in PARES]
 PREDICHOS = [p for _, p in PARES]
+
+
+def _hace_falta_matplotlib():
+    """Las pruebas que construyen una figura lo llaman primero. Las que no, corren siempre."""
+    pytest.importorskip("matplotlib")
 
 
 def _cerrar(figura):
@@ -79,6 +85,7 @@ def test_02_las_zonas_partidas_se_rotulan_mas_de_una_vez():
 
 def test_03_el_titulo_lleva_el_ab_su_meta_la_n_y_las_cinco_zonas():
     """Un A+B suelto no se puede leer: ni contra qué meta, ni sobre cuántos pares."""
+    _hace_falta_matplotlib()
     figura = rejilla_de_clarke(REALES, PREDICHOS)
 
     titulo = figura.axes[0].get_title()
@@ -97,6 +104,7 @@ def test_04_sin_pares_truena_en_lugar_de_dibujar_un_eje_vacio():
 def test_05_el_recorte_por_omision_deja_ver_los_puntos():
     """Una rejilla dibujada hasta 600 con datos que no pasan de 200 deja todo apelotonado en
     una esquina, y es la figura que se acaba pegando al documento."""
+    _hace_falta_matplotlib()
     figura = rejilla_de_clarke(REALES, PREDICHOS)
 
     _, tope = figura.axes[0].get_xlim()
@@ -105,6 +113,7 @@ def test_05_el_recorte_por_omision_deja_ver_los_puntos():
 
 
 def test_06_el_recorte_se_puede_forzar_hasta_el_rango_completo():
+    _hace_falta_matplotlib()
     figura = rejilla_de_clarke(REALES, PREDICHOS, hasta=GLUCOSA_MAX)
 
     assert figura.axes[0].get_xlim()[1] == GLUCOSA_MAX
@@ -120,6 +129,7 @@ def test_10_lo_medido_sale_continuo_y_lo_predicho_punteado():
     """La regla de interfaz del proyecto, y la que el simulador de la fase 4 rompió sin que una
     revisión de código lo viera: una persona medio dormida tiene que distinguirlas sin leer la
     leyenda."""
+    _hace_falta_matplotlib()
     figura = medido_contra_predicho([0, 5, 10], [100, 110, 120], [102, 108, 125])
 
     lineas = {linea.get_label(): linea for linea in figura.axes[0].lines}
@@ -129,6 +139,7 @@ def test_10_lo_medido_sale_continuo_y_lo_predicho_punteado():
 
 
 def test_11_los_dos_umbrales_estan_dibujados_y_rotulados():
+    _hace_falta_matplotlib()
     figura = medido_contra_predicho([0, 5], [100, 110], [102, 108], umbral_hipo=65)
 
     textos = [t.get_text() for t in figura.axes[0].texts]
@@ -145,6 +156,7 @@ def test_11_los_dos_umbrales_estan_dibujados_y_rotulados():
 def test_20_el_peor_origen_queda_arriba():
     """Es la figura del riesgo R-2: si el error es peor para quien no tiene sensor, tiene que
     saltar a la vista, no esconderse en la última fila."""
+    _hace_falta_matplotlib()
     figura = error_por_origen(
         {"sensor": 11.0, "manual": 20.0, "fotoGlucometro": 25.0},
         n_por_origen={"sensor": 1000, "manual": 50, "fotoGlucometro": 20},
@@ -169,6 +181,7 @@ def test_21_sin_origenes_truena():
 def test_30_el_titulo_nombra_a_los_que_no_le_ganan_a_la_persistencia():
     """«Un modelo que no le gana a la persistencia no justifica su existencia» es una frase del
     protocolo; esta figura la vuelve comprobable de un vistazo."""
+    _hace_falta_matplotlib()
     figura = contra_las_lineas_base(
         {"m1": 12.0, "persistencia": 15.0, "ridge": 18.0, "lstm": 14.0},
         el_del_proyecto="m1",
@@ -181,6 +194,7 @@ def test_30_el_titulo_nombra_a_los_que_no_le_ganan_a_la_persistencia():
 
 
 def test_31_cuando_todos_le_ganan_el_titulo_lo_dice_en_lugar_de_callarse():
+    _hace_falta_matplotlib()
     figura = contra_las_lineas_base(
         {"m1": 12.0, "persistencia": 15.0, "ridge": 14.0},
         el_del_proyecto="m1",
@@ -193,6 +207,7 @@ def test_31_cuando_todos_le_ganan_el_titulo_lo_dice_en_lugar_de_callarse():
 def test_315_sin_modelo_entrenado_la_figura_no_presume_de_ganarse_a_si_misma():
     """Hoy la única barra es la persistencia. Decir «todos le ganan a la persistencia» con una
     sola barra, que es ella, sería una figura que se felicita sola."""
+    _hace_falta_matplotlib()
     figura = contra_las_lineas_base({"persistencia": 15.0}, el_del_proyecto="persistencia")
 
     titulo = figura.axes[0].get_title()
@@ -204,6 +219,7 @@ def test_315_sin_modelo_entrenado_la_figura_no_presume_de_ganarse_a_si_misma():
 def test_32_el_modelo_del_proyecto_se_distingue_sin_color():
     """El proyecto se revisa en escala de grises: el tono no puede ser el único que lo
     distinga."""
+    _hace_falta_matplotlib()
     figura = contra_las_lineas_base({"m1": 12.0, "persistencia": 15.0}, el_del_proyecto="m1")
 
     etiquetas = [t.get_text() for t in figura.axes[0].get_yticklabels()]
@@ -224,6 +240,7 @@ def test_33_un_modelo_que_no_esta_en_la_tabla_truena():
 
 
 def test_40_guardar_crea_la_carpeta_y_deja_un_png_de_verdad(tmp_path):
+    _hace_falta_matplotlib()
     figura = medido_contra_predicho([0, 5], [100, 110], [102, 108])
 
     ruta = guardar(figura, tmp_path / "figuras" / "serie.png")
