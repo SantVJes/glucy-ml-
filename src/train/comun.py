@@ -15,7 +15,7 @@ from src.features.ventanas import Fila, filas_densas
 from src.ingest.ohiot1dm import Registro, leer_carpeta
 from src.train.artefacto import guardar, manifiesto_de
 from src.train.entrenar import Corrida, evaluar_con_loso, resumen
-from src.train.modelos import Bosque, ExtrapolacionLineal, Persistencia, Ridge, XGBoost
+from src.train.modelos import LSTM, Bosque, ExtrapolacionLineal, Persistencia, Ridge, XGBoost
 
 SEMILLA_POR_OMISION = int(os.environ.get("GLUCY_SEMILLA", "42"))
 CARPETA_DATOS = os.environ.get("GLUCY_RUTA_DATOS", "data/ohiot1dm")
@@ -58,6 +58,14 @@ def argumentos(descripcion: str) -> argparse.ArgumentParser:
         "--sin-guardar",
         action="store_true",
         help="evalúa e imprime, pero no escribe el artefacto",
+    )
+    p.add_argument(
+        "--sin-lstm",
+        action="store_true",
+        help=(
+            "salta la línea base recurrente, que es la lenta. Para iterar, no para reportar: "
+            "el protocolo pide las cinco"
+        ),
     )
     return p
 
@@ -108,6 +116,24 @@ def filas_de(
     return filas
 
 
+def _lineas_base(args: argparse.Namespace, horizonte_min: int) -> dict[str, object]:
+    """Las cinco del protocolo. La recurrente va **encendida por omisión**, a propósito.
+
+    El protocolo las pide todas, y una tabla a la que le falta una línea base es una tabla que
+    hay que explicar en el reporte. Que la rápida sea la incompleta y no al revés: `--sin-lstm`
+    está para iterar, y quien lo escribe sabe lo que se está saltando.
+    """
+    lineas: dict[str, object] = {
+        "persistencia": Persistencia(),
+        "extrapolacion_lineal": ExtrapolacionLineal(horizonte_min),
+        "ridge": Ridge(semilla=args.semilla),
+        "bosque": Bosque(semilla=args.semilla),
+    }
+    if not getattr(args, "sin_lstm", False):
+        lineas["lstm"] = LSTM(semilla=args.semilla)
+    return lineas
+
+
 def correr(
     args: argparse.Namespace,
     *,
@@ -131,12 +157,7 @@ def correr(
         juego=juego,
         horizonte_min=horizonte_min,
         construir_modelo=lambda: XGBoost(semilla=args.semilla),
-        construir_lineas_base=lambda: {
-            "persistencia": Persistencia(),
-            "extrapolacion_lineal": ExtrapolacionLineal(horizonte_min),
-            "ridge": Ridge(semilla=args.semilla),
-            "bosque": Bosque(semilla=args.semilla),
-        },
+        construir_lineas_base=lambda: _lineas_base(args, horizonte_min),
         umbral_hipo=args.umbral_hipo,
         nombre=modelo,
     )

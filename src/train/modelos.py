@@ -296,11 +296,209 @@ def _np(datos):
     return np.asarray(datos, dtype=float)
 
 
-# La línea base que falta, y por qué no está:
-#
-# **LSTM.** El protocolo la pide y no está escrita. Necesita un marco de redes —PyTorch o
-# Keras—, que son cientos de megabytes y una decisión que conviene tomar con los datos delante:
-# con doce sujetos y ocho semanas cada uno puede que una red recurrente no se sostenga, y eso
-# se sabe midiendo, no antes. Se agrega en el paso que la implemente, junto con su dependencia.
-# Mientras no esté, **el reporte tiene que decir que falta**, no omitirla de la tabla.
-FALTA_LSTM = "necesita un marco de redes; se decide con los datos delante"
+# --- La quinta línea base, la recurrente -----------------------------------------------------
+
+# La secuencia de glucosa que ya viene dentro de cada fila, del punto más viejo al más nuevo.
+# No hay que ir a buscarla a ninguna parte: las características de rezago **son** la serie.
+PASOS_DE_LA_SECUENCIA: tuple[str, ...] = (
+    "rezago_60", "rezago_30", "rezago_15", "rezago_10", "rezago_5", "mg_dl",
+)  # fmt: skip
+
+
+class LSTM:
+    """Línea base recurrente. Es la quinta del protocolo y la última que faltaba.
+
+    ## De dónde sale la secuencia
+
+    Una red recurrente quiere una secuencia, y el bucle de evaluación reparte filas planas. En
+    lugar de armar un conjunto aparte —que sería comparar dos modelos sobre dos conjuntos
+    distintos, la trampa que este diseño existe para evitar—, la secuencia se arma **con las
+    columnas que la fila ya trae**: `rezago_60, rezago_30, rezago_15, rezago_10, rezago_5,
+    mg_dl` es, literalmente, la glucosa en seis instantes ordenados. El resto de las
+    características (COB, IOB, hora cíclica, día) se repiten en cada paso como contexto.
+
+    Así la red ve **la misma información** que XGBoost, sobre **las mismas filas** y con **la
+    misma partición**. La comparación mide la arquitectura, que es lo que se quiere medir.
+
+    Los pasos no están igualmente espaciados: van 30, 15, 5, 5 y 5 minutos. Una LSTM no asume
+    espaciado uniforme —no es un filtro—, así que no es un error, pero conviene decirlo en el
+    reporte en lugar de dejar creer que son seis muestras del sensor seguidas.
+
+    ## Por qué está escrita con cuidado y no de cualquier manera
+
+    Una línea base mal entrenada **adula al modelo del proyecto**, y es justo la dirección en
+    la que no conviene equivocarse: todo el argumento se sostiene en «le gana a estas cinco».
+    Por eso lleva lo que una red necesita para no salir artificialmente mal: estandarización de
+    entradas y del objetivo, Adam, y **paro temprano sobre un corte temporal** del conjunto de
+    entrenamiento —el último trozo, nunca uno al azar—, porque barajar una serie y validar
+    sobre el pasado es fuga de información y daría una línea base irrealmente buena.
+
+    Si con doce sujetos la red no se sostiene, el número lo dirá. Eso es un resultado del
+    reporte, no una razón para no escribirla.
+    """
+
+    nombre = "lstm"
+    algoritmo = "lstm"
+
+    def __init__(
+        self,
+        semilla: int,
+        *,
+        caracteristicas: Sequence[str] = CARACTERISTICAS_DENSAS,
+        unidades: int = 32,
+        epocas: int = 60,
+        paciencia: int = 8,
+        lote: int = 256,
+        tasa: float = 0.01,
+        fraccion_validacion: float = 0.2,
+    ) -> None:
+        self._semilla = semilla
+        self._caracteristicas = list(caracteristicas)
+        faltan = [c for c in PASOS_DE_LA_SECUENCIA if c not in self._caracteristicas]
+        if faltan:
+            raise ValueError(
+                f"la línea base recurrente arma su secuencia con los rezagos de la fila y "
+                f"faltan {faltan}. Con el juego disperso no hay serie que recorrer, y una "
+                "LSTM sobre un solo punto no es una LSTM."
+            )
+        self._pasos = [self._caracteristicas.index(c) for c in PASOS_DE_LA_SECUENCIA]
+        self._contexto = [
+            i for i, c in enumerate(self._caracteristicas) if c not in PASOS_DE_LA_SECUENCIA
+        ]
+        self._unidades = unidades
+        self._epocas = epocas
+        self._paciencia = paciencia
+        self._lote = lote
+        self._tasa = tasa
+        self._fraccion_validacion = fraccion_validacion
+        self._red: Any = None
+        self._centro: Any = None
+        self._escala: Any = None
+        self._centro_y = 0.0
+        self._escala_y = 1.0
+        self._epocas_usadas = 0
+
+    @property
+    def hiperparametros(self) -> dict[str, Any]:
+        return {
+            "unidades": self._unidades,
+            "epocas_maximas": self._epocas,
+            "epocas_usadas": self._epocas_usadas,
+            "paciencia": self._paciencia,
+            "lote": self._lote,
+            "tasa_aprendizaje": self._tasa,
+            "pasos": list(PASOS_DE_LA_SECUENCIA),
+            "imputacion": "mediana",
+            "escalado": "estandar",
+            "validacion": "último 20 % en orden, nunca al azar",
+        }
+
+    def _secuencias(self, x: Matriz):
+        """De la matriz plana a `(filas, 6 pasos, 1 + contexto)`, ya imputada y escalada."""
+        import numpy as np
+
+        datos = _np(x)
+        datos = np.where(np.isnan(datos), self._centro, datos)
+        datos = (datos - self._centro) / self._escala
+        glucosa = datos[:, self._pasos][:, :, None]
+        if not self._contexto:
+            return glucosa
+        contexto = datos[:, self._contexto][:, None, :]
+        contexto = np.repeat(contexto, len(self._pasos), axis=1)
+        return np.concatenate([glucosa, contexto], axis=2)
+
+    def ajustar(self, x: Matriz, y: Vector) -> None:
+        import numpy as np
+        import torch
+        from torch import nn
+
+        torch.manual_seed(self._semilla)
+        np.random.seed(self._semilla)
+
+        datos = _np(x)
+        # La mediana y la desviación salen **solo del entrenamiento**: calcularlas sobre todo
+        # el conjunto filtraría información de la prueba hacia el ajuste.
+        self._centro = np.nanmedian(datos, axis=0)
+        self._centro = np.where(np.isnan(self._centro), 0.0, self._centro)
+        escala = np.nanstd(np.where(np.isnan(datos), self._centro, datos), axis=0)
+        self._escala = np.where((escala == 0) | np.isnan(escala), 1.0, escala)
+
+        objetivo = _np(y)
+        self._centro_y = float(objetivo.mean())
+        self._escala_y = float(objetivo.std()) or 1.0
+
+        secuencias = torch.tensor(self._secuencias(datos), dtype=torch.float32)
+        etiquetas = torch.tensor(
+            (objetivo - self._centro_y) / self._escala_y, dtype=torch.float32
+        ).unsqueeze(1)
+
+        # El corte de validación es **temporal**: el último trozo, en el orden en que vienen
+        # las filas. Barajar y validar sobre el pasado es fuga de información, y con paro
+        # temprano se traduce en parar en la época equivocada.
+        corte = max(1, int(len(secuencias) * (1 - self._fraccion_validacion)))
+        entrena_x, valida_x = secuencias[:corte], secuencias[corte:]
+        entrena_y, valida_y = etiquetas[:corte], etiquetas[corte:]
+        if len(valida_x) == 0:
+            valida_x, valida_y = entrena_x, entrena_y
+
+        self._red = _RedRecurrente(entradas=secuencias.shape[2], unidades=self._unidades)
+        optimizador = torch.optim.Adam(self._red.parameters(), lr=self._tasa)
+        perdida = nn.MSELoss()
+
+        mejor = float("inf")
+        mejor_estado = {k: v.clone() for k, v in self._red.state_dict().items()}
+        sin_mejorar = 0
+        for epoca in range(1, self._epocas + 1):
+            self._red.train()
+            for desde in range(0, len(entrena_x), self._lote):
+                lote_x = entrena_x[desde : desde + self._lote]
+                lote_y = entrena_y[desde : desde + self._lote]
+                optimizador.zero_grad()
+                perdida(self._red(lote_x), lote_y).backward()
+                optimizador.step()
+
+            self._red.eval()
+            with torch.no_grad():
+                actual = float(perdida(self._red(valida_x), valida_y))
+            if actual < mejor - 1e-5:
+                mejor, sin_mejorar = actual, 0
+                mejor_estado = {k: v.clone() for k, v in self._red.state_dict().items()}
+                self._epocas_usadas = epoca
+            else:
+                sin_mejorar += 1
+                if sin_mejorar >= self._paciencia:
+                    break
+        # Se devuelven los pesos de la mejor época, no los de la última: parar tarde y quedarse
+        # con lo último es entrenar de más y reportarlo como si no.
+        self._red.load_state_dict(mejor_estado)
+
+    def predecir(self, x: Matriz) -> list[float]:
+        import torch
+
+        if self._red is None:
+            raise RuntimeError("hay que ajustar el modelo antes de predecir")
+        self._red.eval()
+        with torch.no_grad():
+            salida = self._red(torch.tensor(self._secuencias(x), dtype=torch.float32))
+        return [float(v) * self._escala_y + self._centro_y for v in salida.squeeze(1)]
+
+
+def _RedRecurrente(entradas: int, unidades: int):  # noqa: N802
+    """Una LSTM de una capa y una salida lineal sobre el último paso.
+
+    Se define dentro de una función y no al nivel del módulo para no importar `torch` al
+    importar este archivo: la integración continua solo instala pytest y ruff.
+    """
+    from torch import nn
+
+    class Red(nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.lstm = nn.LSTM(entradas, unidades, batch_first=True)
+            self.salida = nn.Linear(unidades, 1)
+
+        def forward(self, x):
+            secuencia, _ = self.lstm(x)
+            return self.salida(secuencia[:, -1, :])
+
+    return Red()

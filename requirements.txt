@@ -23,7 +23,14 @@ matplotlib>=3.9       # la rejilla de Clarke dibujada en el cuaderno de evaluaci
 # comprueba contra XGBoost fila por fila y no se da por buena.
 coremltools>=8.0
 
-# La línea base LSTM del protocolo necesita además un marco de redes (PyTorch o Keras). Se
-# agrega en el paso que la implemente, para no arrastrar aquí una dependencia enorme antes de
-# saber si hace falta: con doce sujetos puede que no se justifique, y eso se decide con los
-# datos delante.
+# La quinta línea base del protocolo, la recurrente. Es la dependencia más pesada del
+# repositorio y por eso es la última que entró, pero entró: una tabla de líneas base a la que
+# le falta una es una tabla que hay que explicar en el reporte, y «no la escribimos» no es una
+# explicación. La rueda de CPU basta —no hay GPU en este proyecto— y se instala con:
+#
+#     pip install torch --index-url https://download.pytorch.org/whl/cpu
+#
+# `pip install torch` a secas también sirve; baja además las bibliotecas de CUDA, que aquí no
+# se usan. Igual que todo lo demás de este archivo, la integración continua NO lo instala: las
+# pruebas de la LSTM se saltan solas ahí y corren completas en la máquina que entrena.
+torch>=2.4

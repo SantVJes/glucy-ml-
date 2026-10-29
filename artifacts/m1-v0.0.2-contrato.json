@@ -1,0 +1,194 @@
+{
+  "modelo": "m1",
+  "version": "v0.0.2-contrato",
+  "algoritmo": "xgboost",
+  "horizonte_min": 30,
+  "juego": "denso",
+  "caracteristicas": [
+    "mg_dl",
+    "rezago_5",
+    "rezago_10",
+    "rezago_15",
+    "rezago_30",
+    "rezago_60",
+    "derivada_1",
+    "derivada_2",
+    "media_30",
+    "media_60",
+    "cob",
+    "iob",
+    "hora_sin",
+    "hora_cos",
+    "dia_semana"
+  ],
+  "semilla": 42,
+  "hiperparametros": {
+    "n_estimators": 300,
+    "max_depth": 4,
+    "learning_rate": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "min_child_weight": 10,
+    "reg_lambda": 1.0,
+    "objective": "reg:squarederror",
+    "random_state": 42
+  },
+  "origen_datos": "sintetico",
+  "n_entrenamiento": 4219,
+  "n_prueba": 4219,
+  "sujetos_entrenamiento": [
+    "S00",
+    "S01",
+    "S02"
+  ],
+  "sujetos_prueba": [],
+  "metricas": {
+    "n": 4219,
+    "horizonte_min": 30,
+    "rmse": 19.26978869681409,
+    "mae": 14.491054986816753,
+    "mard": 10.087529686686826,
+    "clarke_ab": 99.19412182981749,
+    "clarke_reparto": {
+      "A": 86.86892628584972,
+      "B": 12.325195543967764,
+      "C": 0.0,
+      "D": 0.8058781701825077,
+      "E": 0.0
+    },
+    "sensibilidad_hipo": 0.0,
+    "falsas_alarmas": 0.0
+  },
+  "protocolo": "Validación cruzada dejando un sujeto fuera sobre 3 sujetos; las métricas son de esos pliegues. El artefacto que se publica se entrenó después con todos los sujetos, con los mismos hiperparámetros y la misma semilla.",
+  "metricas_por_sujeto": {
+    "S00": {
+      "n": 1406,
+      "horizonte_min": 30,
+      "rmse": 13.801206454175404,
+      "mae": 11.003863731590478,
+      "mard": 7.447269070213839,
+      "clarke_ab": 99.92887624466572,
+      "clarke_reparto": {
+        "A": 96.23044096728307,
+        "B": 3.6984352773826457,
+        "C": 0.0,
+        "D": 0.07112375533428165,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 0.0,
+      "falsas_alarmas": 0.0
+    },
+    "S01": {
+      "n": 1408,
+      "horizonte_min": 30,
+      "rmse": 26.69386446671407,
+      "mae": 20.910485204783352,
+      "mard": 13.219369909777344,
+      "clarke_ab": 98.57954545454545,
+      "clarke_reparto": {
+        "A": 75.63920454545455,
+        "B": 22.94034090909091,
+        "C": 0.0,
+        "D": 1.4204545454545454,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": null,
+      "falsas_alarmas": 0.0
+    },
+    "S02": {
+      "n": 1405,
+      "horizonte_min": 30,
+      "rmse": 14.503057198268333,
+      "mae": 11.547591042298015,
+      "mard": 9.591142065796845,
+      "clarke_ab": 99.07473309608541,
+      "clarke_reparto": {
+        "A": 88.75444839857651,
+        "B": 10.320284697508896,
+        "C": 0.0,
+        "D": 0.9252669039145908,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 0.0,
+      "falsas_alarmas": 0.0
+    }
+  },
+  "metricas_lineas_base": {
+    "persistencia": {
+      "n": 4219,
+      "horizonte_min": 30,
+      "rmse": 15.038046242613271,
+      "mae": 10.982270680255985,
+      "mard": 7.564940111030116,
+      "clarke_ab": 99.88148850438492,
+      "clarke_reparto": {
+        "A": 94.26404361223038,
+        "B": 5.617444892154539,
+        "C": 0.0,
+        "D": 0.11851149561507467,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 28.571428571428573,
+      "falsas_alarmas": 71.42857142857143
+    },
+    "extrapolacion_lineal": {
+      "n": 4118,
+      "horizonte_min": 30,
+      "rmse": 20.04283610824021,
+      "mae": 13.476542010684799,
+      "mard": 9.060694442074256,
+      "clarke_ab": 99.87858183584264,
+      "clarke_reparto": {
+        "A": 89.50947061680428,
+        "B": 10.369111219038368,
+        "C": 0.04856726566294318,
+        "D": 0.07285089849441477,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 78.57142857142857,
+      "falsas_alarmas": 85.52631578947368
+    },
+    "ridge": {
+      "n": 4219,
+      "horizonte_min": 30,
+      "rmse": 21.970224689620732,
+      "mae": 15.849856568892143,
+      "mard": 10.760146086226287,
+      "clarke_ab": 99.26522872718654,
+      "clarke_reparto": {
+        "A": 82.64991704195307,
+        "B": 16.61531168523347,
+        "C": 0.0,
+        "D": 0.7347712728134629,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 0.0,
+      "falsas_alarmas": 100.0
+    },
+    "bosque": {
+      "n": 4219,
+      "horizonte_min": 30,
+      "rmse": 19.996730713385414,
+      "mae": 15.05816520721044,
+      "mard": 10.457848237484331,
+      "clarke_ab": 98.93339653946433,
+      "clarke_reparto": {
+        "A": 85.54159753496089,
+        "B": 13.391799004503437,
+        "C": 0.0,
+        "D": 1.066603460535672,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 0.0,
+      "falsas_alarmas": 0.0
+    }
+  },
+  "creado_utc": "2026-10-29T04:47:42+00:00",
+  "entorno": {
+    "python": "3.13.17",
+    "sistema": "Linux x86_64",
+    "xgboost": "3.4.1",
+    "scikit-learn": "1.9.1"
+  },
+  "version_del_manifiesto": 1
+}
