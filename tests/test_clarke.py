@@ -32,6 +32,22 @@ def test_predicho_exactamente_en_180_con_real_alto_es_d():
     assert zona(300, 180) == "D"
 
 
+def test_una_hipoglucemia_no_detectada_es_d_y_no_b():
+    """Real 60 con predicho 120 es **D**, no B.
+
+    Es la tercera familia del cotejo y la única donde el puerto público es el indulgente: su
+    condición para la zona D baja pide `p >= (7/5)*real + 110`, que con un real de 60 son 194,
+    y arriba de 180 ya manda la zona E, así que esa rama nunca se activa y le salen B 1 224
+    pares con reales de 59 a 70.
+
+    Pero un real de 60 predicho como 120 es literalmente «no detectar una hipoglucemia», que
+    es la definición de la zona D y **el evento central de Glucy**. La referencia del backend
+    aquí tiene razón y este repositorio la sigue.
+    """
+    assert zona(60, 120) == "D"
+    assert zona(59, 71) == "D"
+
+
 # --- Las cinco zonas, cada una con un caso claro --------------------------------------------
 
 

@@ -22,34 +22,50 @@ repositorio tiene que dar sus mismos números. Su propio `docstring` de `zona_cl
 que la implementación seguía «la formulación habitual» y que **convenía cotejarla antes de
 reportar métricas**.
 
-Se cotejó (29/10/2026), comparando las dos implementaciones sobre los 337 561 pares enteros de
-20 a 600 mg/dL, y **no coinciden en 28 466 pares**. Las dos diferencias, con su dirección:
+Se cotejó (29/10/2026). Se comparó la referencia del backend contra el puerto de Python de la
+implementación de MATLAB File Exchange, par por par sobre los 337 561 pares enteros de 20 a
+600 mg/dL. **No coinciden en 29 690 pares, en tres familias**, y no todas van en la misma
+dirección:
 
-1. **28 105 pares.** Con un valor real de 181 a 290 y un predicho de `real + 110` o más, la
-   referencia dice **B** y la formulación publicada dice **C**. La referencia acota la zona C
-   por arriba en 180 en lugar de 290. Caso concreto: real 200, predicho 320.
-2. **361 pares.** Con un valor real de 240 o más y un predicho de exactamente 180, la
-   referencia dice **B** y la publicada dice **D**. La referencia compara con `70 < p < 180`
-   donde la publicada usa `70 ≤ p ≤ 180`. Caso concreto: real 300, predicho 180.
+| # | Pares | Con un real… y un predicho… | El backend dice | El puerto público dice |
+| --- | --- | --- | --- | --- |
+| 1 | 28 105 | real 181–290, predicho ≥ real + 110 | B | **C** |
+| 2 | 361 | real ≥ 240, predicho exactamente 180 | B | **D** |
+| 3 | 1 224 | real 59–70, predicho 71–180 | **D** | B |
 
-**Las dos diferencias van en la misma dirección: la referencia es más indulgente.** Cuenta como
-B lo que la otra llama C o D, y con eso **infla justo la cifra que el proyecto promete** (A+B
-≥ 95 %). Un real de 200 predicho como 320 invita a corregir de más, y un real de 300 predicho
-como 180 es exactamente «no detectar una hiperglucemia»: ninguno de los dos es un error
-benigno.
+Casos concretos: (200, 320) para la 1, (300, 180) para la 2, (60, 120) para la 3.
 
-Así que aquí se implementa la **formulación estricta**, y la referencia del backend se corrige
-para que coincida. Es la elección conservadora: si al cotejar contra el artículo original de
-Clarke et al. (1987) resultara que la indulgente es la correcta, el proyecto habría reportado
-una métrica **peor** que la real, que es el error que se puede defender. Al contrario, no.
+Qué es cada una:
 
-`tests/test_clarke.py` deja escritos los dos casos de la lista, así que si alguien vuelve a la
-otra formulación la prueba lo dice en lugar de que la métrica cambie en silencio.
+1. El backend acota la zona C por arriba en 180 en lugar de 290. Un real de 200 predicho como
+   320 invita a sobrecorregir: eso es C, no un error benigno.
+2. El backend compara con `70 < p < 180` donde el puerto usa `70 ≤ p ≤ 180`. Un `<` donde va
+   un `<=`.
+3. Aquí es **el puerto el más indulgente**. Su condición para la zona D baja es
+   `p ≥ (7/5)·real + 110`, que con un real de 60 pide un predicho de 194, y como arriba de 180
+   ya manda la zona E, esa rama nunca se activa: un real de 60 predicho como 120 le sale **B**.
+   Pero un real de 60 predicho como 120 es literalmente «no detectar una hipoglucemia», que es
+   la definición de la zona D y **el evento central de Glucy**. La fórmula del puerto parece una
+   transcripción equivocada; el backend aquí tiene razón.
+
+**Este archivo toma en las tres la lectura más severa**: C en la 1, D en la 2 y D en la 3. Así
+que difiere del backend en las dos primeras y del puerto público en la tercera.
+
+Importa porque B cuenta para el A+B que el proyecto promete en ≥ 95 %: cada vez que una
+formulación llama B a lo que otra llama C o D, **infla justo la cifra que decide si el modelo
+sirve**. Elegir la lectura severa es la decisión conservadora: si al cotejar contra el artículo
+original resultara que la indulgente es la correcta, el proyecto habría reportado una métrica
+**peor** que la real, que es el error que se puede defender. Al contrario, no.
+
+La referencia del backend se corrige para las dos primeras, para que los dos repositorios den
+el mismo número.
+
+`tests/test_clarke.py` deja escritos los tres casos concretos, así que volver a cualquiera de
+las otras dos formulaciones hace fallar una prueba en lugar de mover la métrica en silencio.
 
 **Lo que sigue pendiente** es cotejar contra el artículo original, que no está accesible en
 línea sin suscripción. Mientras no se haga, el documento final tiene que decir qué formulación
-se usó, no solo «rejilla de Clarke». Referencia de la formulación estricta: el puerto de Python
-de la implementación de MATLAB File Exchange,
+se usó, no solo «rejilla de Clarke». El puerto público con el que se cotejó:
 https://github.com/suetAndTie/ClarkeErrorGrid.
 """
 

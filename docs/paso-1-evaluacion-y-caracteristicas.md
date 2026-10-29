@@ -48,40 +48,54 @@ requirements.txt   dependencias del entrenamiento (la CI no las instala, a prop�
 
 ## Los cuatro hallazgos de este paso
 
-### 1. La rejilla de Clarke del backend es más laxa de lo que debe, justo en la métrica principal
+### 1. La rejilla de Clarke no está implementada igual en ninguna parte
 
 `CLAUDE.md` de este repositorio pedía cotejar la implementación de la rejilla «contra el
-artículo original de Clarke et al. (1987) antes de reportar métricas». Se hizo: se comparó
-`zona_clarke` de `referencia/reglas_clinicas.py` del backend contra el port público de la
-implementación en MATLAB, **pareja por pareja sobre las 337 561 combinaciones de enteros entre
-20 y 600 mg/dL**.
+artículo original de Clarke et al. (1987) antes de reportar métricas». Se hizo lo que se podía
+hacer: comparar `zona_clarke` de `referencia/reglas_clinicas.py` del backend contra el puerto
+de Python de la implementación de MATLAB File Exchange, **par por par sobre las 337 561
+combinaciones de enteros entre 20 y 600 mg/dL**.
 
-Hay **28 466 discrepancias**, en dos familias:
+**No coinciden en 29 690 pares, en tres familias, y no todas van en la misma dirección:**
 
-| Caso | Cuántas parejas | El backend dice | La formulación estricta dice | Ejemplo |
-| --- | --- | --- | --- | --- |
-| Real entre 181 y 290 con predicho ≥ real + 110 | 28 105 | B | **C** | real 200 → predicho 320 |
-| Real ≥ 240 con predicho exactamente 180 | 361 | B | **D** | real 300 → predicho 180 |
+| # | Pares | Con un real… y un predicho… | El backend dice | El puerto público dice | Ejemplo |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 28 105 | real 181–290, predicho ≥ real + 110 | B | **C** | real 200 → 320 |
+| 2 | 361 | real ≥ 240, predicho exactamente 180 | B | **D** | real 300 → 180 |
+| 3 | 1 224 | real 59–70, predicho 71–180 | **D** | B | real 60 → 120 |
 
-El primero es que el backend topa la zona C en 180 mg/dL en lugar de 290. El segundo es un
-`<` donde va un `<=`.
+Qué es cada una:
 
-**Las dos van en la misma dirección: el backend es más indulgente, y B cuenta para el A+B que
-el proyecto promete en ≥ 95 %.** Es decir, la implementación laxa infla precisamente la cifra
-que decide si el modelo sirve.
+1. El backend acota la zona C por arriba en 180 mg/dL en lugar de 290. Un real de 200 predicho
+   como 320 invita a sobrecorregir, y eso es C, no un error benigno.
+2. El backend compara con `70 < p < 180` donde el puerto usa `70 ≤ p ≤ 180`. Un `<` donde va
+   un `<=`.
+3. **Aquí el indulgente es el puerto público.** Su condición para la zona D baja pide
+   `p ≥ (7/5)·real + 110`, que con un real de 60 son 194; como arriba de 180 ya manda la zona
+   E, esa rama nunca se activa y un real de 60 predicho como 120 le sale B. Pero eso es
+   literalmente «no detectar una hipoglucemia», que es la definición de la zona D y **el evento
+   central de Glucy**. La fórmula del puerto parece una transcripción equivocada, y aquí el
+   backend tiene razón.
 
-Decisión: **este repositorio implementa la formulación estricta**, y las dos parejas del cuadro
-están escritas como pruebas (`tests/test_clarke.py`) para que volver a la laxa sea imposible de
-hacer sin verlo. El criterio es sencillo: reportar una métrica peor que la real es un error
-que se sobrevive; reportar una mejor, no.
+Lo que importa de las tres juntas: **B cuenta para el A+B que el proyecto promete en ≥ 95 %**,
+así que cada vez que una formulación llama B a lo que la otra llama C o D, infla precisamente
+la cifra que decide si el modelo sirve.
 
-El artículo de 1987 sigue siendo el árbitro final y no está accesible sin suscripción. Cuando
-se pueda consultar, se coteja; mientras tanto se usa la versión defendible y la discrepancia
-está escrita en el código y aquí, no escondida.
+Decisión: **este repositorio toma en las tres la lectura más severa** —C en la primera, D en la
+segunda, D en la tercera—, así que difiere del backend en las dos primeras y del puerto público
+en la tercera. Los tres casos concretos están escritos como pruebas en
+`tests/test_clarke.py`, de modo que volver a cualquiera de las otras dos formulaciones hace
+fallar una prueba en lugar de mover la métrica en silencio.
 
-**Queda pendiente**: corregir `zona_clarke` en `glucy-backend` para que los dos repositorios
-den el mismo número. Va en su propio pull request, porque toca el archivo de referencia con
-30 pruebas.
+El criterio es sencillo: si al cotejar contra el artículo original resultara que la indulgente
+es la correcta, el proyecto habría reportado una métrica **peor** que la real, y ese es el error
+que se puede defender. Al contrario, no. El artículo de 1987 sigue siendo el árbitro final y no
+está accesible sin suscripción; cuando se pueda consultar, se coteja. Mientras tanto, **el
+documento final tiene que decir qué formulación se usó**, no solo «rejilla de Clarke».
+
+**Queda pendiente**: corregir las dos primeras en `glucy-backend` para que los dos repositorios
+den el mismo número. Va en su propio pull request, porque toca el archivo de referencia con 30
+pruebas.
 
 ### 2. El esquema de los XML de OhioT1DM no está publicado
 
@@ -100,6 +114,7 @@ Y hay una herramienta para el día que lleguen:
 
 ```python
 from src.ingest.ohiot1dm import esquema_encontrado
+
 print(esquema_encontrado("data/ohiot1dm/2020/train/559-ws-training.xml"))
 ```
 
