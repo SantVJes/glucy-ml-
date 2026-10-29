@@ -26,7 +26,7 @@ clásico: ajustar el criterio hasta que el modelo lo pase.
 estructura de carpetas vacía, la integración continua— y ni una línea de código. `pytest` no
 tenía nada que correr y la propia CI lo decía: «Todavía no hay pruebas en este repositorio».
 
-**Después:** seis módulos con 106 pruebas pasando y la CI en verde. La rejilla de Clarke, las
+**Después:** seis módulos con 107 pruebas pasando y la CI en verde. La rejilla de Clarke, las
 métricas con sus metas, las dos líneas base que no necesitan entrenamiento, los dos juegos de
 características con los nombres del backend, las reglas de partición y el lector de los XML de
 OhioT1DM. Nada de esto necesita el conjunto de datos para correr, y todo está probado.
@@ -42,7 +42,7 @@ src/
     features.py    los dos juegos de RF-24, copiados del backend
   ingest/
     ohiot1dm.py    lectura de los XML
-tests/             106 pruebas
+tests/             107 pruebas
 requirements.txt   dependencias del entrenamiento (la CI no las instala, a propósito)
 ```
 
@@ -221,5 +221,5 @@ simulador fisiológico y decirlo así en el reporte.
 ```bash
 ruff check .      # estilo
 ruff format --check .
-pytest -q         # 106 pruebas, segundos, sin instalar nada más que pytest y ruff
+pytest -q         # 107 pruebas, segundos, sin instalar nada más que pytest y ruff
 ```
