@@ -16,7 +16,12 @@ shap>=0.46            # las cinco contribuciones que consume el servicio de expl
 pandas>=2.2           # armado de las tablas de características
 numpy>=1.26
 matplotlib>=3.9       # la rejilla de Clarke dibujada en el cuaderno de evaluación
-coremltools>=8.0      # conversión del artefacto para que la inferencia corra en el teléfono
+# Conversión del artefacto para que la inferencia corra en el teléfono. Al convertir avisa
+# de que la última versión de XGBoost con la que se probó es la **1.4.2**, muy anterior a la
+# que usa este repositorio, y ese aviso no es decorativo: `src/export/to_coreml.py` encontró
+# que pierde el `base_score` que el modelo aprende de los datos. Por eso la conversión se
+# comprueba contra XGBoost fila por fila y no se da por buena.
+coremltools>=8.0
 
 # La línea base LSTM del protocolo necesita además un marco de redes (PyTorch o Keras). Se
 # agrega en el paso que la implemente, para no arrastrar aquí una dependencia enorme antes de
