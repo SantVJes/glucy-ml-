@@ -124,18 +124,19 @@ M-1 sobre el simulador, 145 062 filas, 18 pliegues y **las cinco líneas base** 
 
 | | RMSE | MAE | MARD | A+B | Sens. hipo | Falsas |
 | --- | --- | --- | --- | --- | --- | --- |
-| M-1 | **14.06** | **10.52** | **8.75 %** | 98.96 % | 59.2 % | 20.2 % |
+| M-1 | **14.11** | **10.55** | 8.77 % | 98.97 % | 59.5 % | 20.1 % |
 | persistencia | 19.64 | 14.08 | 11.15 % | 99.08 % | **67.8 %** | 32.1 % |
 | extrapolación lineal | 24.14 | 17.84 | 14.38 % | 99.16 % | 75.3 % | 58.4 % |
-| ridge | 14.88 | 11.13 | 9.36 % | 98.46 % | 45.9 % | 17.4 % |
-| bosque | 14.24 | 10.60 | 8.77 % | 98.96 % | 59.5 % | 20.7 % |
-| lstm | 15.94 | 11.83 | 9.94 % | 97.58 % | 29.3 % | **8.5 %** |
+| ridge | 14.88 | 11.13 | 9.36 % | 98.45 % | 45.8 % | 17.3 % |
+| bosque | 14.20 | 10.57 | **8.74 %** | **98.98 %** | 60.1 % | 20.4 % |
+| lstm | 16.42 | 12.03 | 10.07 % | 97.41 % | 25.0 % | **7.9 %** |
 
 Cumple cuatro metas de seis: RMSE ≤ 20, MAE ≤ 15, MARD ≤ 12 % y A+B ≥ 95 %. **Falla las dos
-clínicas**: sensibilidad 59.2 % contra una meta de 85 %, y falsas alarmas 20.2 % contra 15 %.
+clínicas**: sensibilidad 59.5 % contra una meta de 85 %, y falsas alarmas 20.1 % contra 15 %.
 
-M-1 tiene **el mejor RMSE, MAE y MARD de las seis filas**, la recurrente incluida. Lo único que
-no gana es el A+B de Clarke, por 0.12 puntos contra la persistencia.
+M-1 tiene el mejor RMSE y el mejor MAE de las seis filas. El **bosque** le gana el MARD por
+0.03 puntos y el A+B por 0.01, y la persistencia le gana el A+B por 0.11: diferencias que no
+distinguen a dos modelos y que conviene reportar como empate en lugar de como orden.
 
 Y la persistencia caza más hipoglucemias que el modelo. El guion lo detectó solo, porque «le
 gana a la persistencia» exige mejor RMSE **y** no peor A+B, y el A+B es 0.12 puntos peor.
@@ -165,15 +166,15 @@ arriba por sí solo invita a la conclusión equivocada.
 
 ```
 línea base con aviso < 70 mg/dL:            sensibilidad 67.8 %   falsas 32.1 %
-modelo igualando esas falsas (aviso < 75):  sensibilidad 73.5 %   falsas 31.1 %
+modelo igualando esas falsas (aviso < 75):  sensibilidad 73.4 %   falsas 31.1 %
 ```
 
-**A igual molestia el modelo caza 5.7 puntos más de hipoglucemias.** El 59.2 % contra 67.8 %
+**A igual molestia el modelo caza 5.6 puntos más de hipoglucemias.** El 59.5 % contra 67.8 %
 del cuadro de arriba no decía que el modelo fuera peor cazando hipoglucemias; decía que avisaba
 menos. Puesto a avisar igual de seguido que la persistencia, caza más.
 
 Y aun así `le_gana_a_la_persistencia` sigue en **falso**, porque exige mejor RMSE y no peor
-A+B, y el A+B es 0.12 puntos peor. Con las seis filas por encima del 98 % de A+B, ese criterio
+A+B, y el A+B es 0.11 puntos peor. Con las seis filas por encima del 98 % de A+B, ese criterio
 está decidiendo con la diferencia menos informativa del cuadro, y eso se dice en el reporte en
 lugar de ajustar el criterio hasta que dé verdadero.
 
@@ -185,16 +186,16 @@ cumple las dos metas a la vez con estas características.
 
 ```
                              n     RMSE      MAE    MARD     A+B  Sens.hipo   Falsas
-m2                      144954    22.05    16.05  13.21%  97.35%      34.7     27.7%
+m2                      144954    22.07    16.03  13.19%  97.35%      34.8     27.2%
 persistencia            144954    30.98    21.99  17.21%  97.85%      55.6     44.4%
 extrapolación lineal    144738    44.34    31.38  24.28%  96.34%      76.6     72.8%
-ridge                   144954    23.56    17.21  14.48%  95.94%       6.1     26.7%
-bosque                  144954    22.34    16.17  13.26%  97.39%      35.4     29.5%
-lstm                    144954    23.98    17.11  14.06%  95.68%       9.5     15.9%
+ridge                   144954    23.57    17.22  14.49%  95.93%       5.9     27.2%
+bosque                  144954    22.32    16.12  13.21%  97.41%      36.3     29.5%
+lstm                    144954    23.68    16.97  13.80%  96.22%      15.4     15.9%
 ```
 
 Igualando la molestia: la persistencia caza 55.6 % con 44.4 % de falsas; M-2 con aviso < 79
-mg/dL caza **57.8 %** con 43.1 %. Otra vez caza más a igual molestia, por 2.3 puntos, y otra
+mg/dL caza **58.0 %** con 43.1 %. Otra vez caza más a igual molestia, por 2.4 puntos, y otra
 vez el A+B es el que decide que «no le gana» —0.50 puntos esta vez.
 
 Lo esperable y lo revelador, en ese orden. Lo esperable: a 60 minutos todo empeora, porque hay
@@ -202,9 +203,9 @@ el doble de futuro por delante; el RMSE pasa de 14.06 a 22.05 y la persistencia 
 mucho más rápido (19.64 → 30.98), que es exactamente lo que justifica tener dos modelos
 independientes por horizonte (RF-26) en vez de uno extrapolado.
 
-Lo revelador es la fila de **ridge**: 6.1 % de sensibilidad. Un modelo lineal a 60 minutos
+Lo revelador es la fila de **ridge**: 5.9 % de sensibilidad. Un modelo lineal a 60 minutos
 encoge tanto hacia la media que casi nunca cruza el umbral, y se le escapan diecinueve de cada
-veinte hipoglucemias **con un RMSE de 23.56 que se ve respetable**. Es el argumento entero de
+veinte hipoglucemias **con un RMSE de 23.57 que se ve respetable**. Es el argumento entero de
 este paso en una sola fila: el RMSE no mide lo que la app necesita medir.
 
 ## La línea base recurrente, y lo que su fila enseña
@@ -215,8 +216,8 @@ media sin terminar; con el arreglo de rendimiento que salió de este mismo paso,
 con las cinco tarda nueve minutos**, así que ya no hay nada que explicar en el reporte.
 
 Y su fila dice algo que el resto del cuadro no decía tan claro. En M-1 la recurrente tiene
-**8.5 % de falsas alarmas: cumple la meta de ≤ 15 % y es la única fila que la cumple.** También
-tiene 29.3 % de sensibilidad, o sea que **se le escapan siete de cada diez hipoglucemias**.
+**7.9 % de falsas alarmas: cumple la meta de ≤ 15 % y es la única fila que la cumple.** También
+tiene 25.0 % de sensibilidad, o sea que **se le escapan tres de cada cuatro hipoglucemias**.
 
 Puestas en orden de cuánto encoge cada modelo hacia la media, las dos columnas clínicas se mueven
 juntas y en direcciones opuestas:
@@ -225,10 +226,10 @@ juntas y en direcciones opuestas:
 | --- | --- | --- |
 | extrapolación lineal (no encoge nada) | 75.3 % | 58.4 % |
 | persistencia | 67.8 % | 32.1 % |
-| bosque | 59.5 % | 20.7 % |
-| M-1 | 59.2 % | 20.2 % |
-| ridge | 45.9 % | 17.4 % |
-| lstm (encoge más) | 29.3 % | **8.5 %** |
+| bosque | 60.1 % | 20.4 % |
+| M-1 | 59.5 % | 20.1 % |
+| ridge | 45.8 % | 17.3 % |
+| lstm (encoge más) | 25.0 % | **7.9 %** |
 
 **La meta de falsas alarmas se cumple sola con un modelo que casi no avisa**, y la de
 sensibilidad se cumple sola con uno que avisa casi siempre. Por separado no significan nada; por
@@ -236,8 +237,8 @@ eso `Punto.cumple_las_metas` exige las dos a la vez y por eso la comparación v�
 tasa de falsas alarmas. Una tabla que reportara solo la columna de falsas alarmas premiaría al
 peor modelo de los cinco.
 
-A 60 minutos el efecto llega al extremo: ridge caza **6.1 %** y la recurrente **9.5 %**, con
-RMSE de 23.56 y 23.98 que se ven respetables al lado del 22.05 de M-2.
+A 60 minutos el efecto llega al extremo: ridge caza **5.9 %**, con un RMSE de 23.57 que se ve
+respetable al lado del 22.07 de M-2.
 
 ### La parte que el código no puede hacer cumplir
 
@@ -253,15 +254,15 @@ El modelo del pico posprandial, 1 858 comidas de 18 sujetos:
 
 | | n | RMSE | MAE |
 | --- | --- | --- | --- |
-| Valor del pico | 1 858 | 29.82 mg/dL | **22.52 mg/dL** |
-| Cuándo ocurre | 1 858 | 36.82 min | 27.86 min |
+| Valor del pico | 1 858 | 29.87 mg/dL | **22.60 mg/dL** |
+| Cuándo ocurre | 1 858 | 37.25 min | 28.08 min |
 
 **Cumple su meta**, que es ≤ 25 mg/dL de MAE en el valor del pico. Es el primer modelo de Glucy
 que pasa su criterio. El «cuándo ocurre» no tiene meta fijada en el reporte y se reporta tal
 cual.
 
-Lo que no puede faltar al lado de ese número: el error **por persona** va de 14.07 mg/dL en
-`adolescent#009` a 44.07 en `adolescent#007`, tres veces peor. Un promedio esconde a la persona
+Lo que no puede faltar al lado de ese número: el error **por persona** va de 14.46 mg/dL en
+`adolescent#009` a 43.90 en `adolescent#007`, tres veces peor. Un promedio esconde a la persona
 para la que el sistema funciona peor, y con una muestra chica eso es justo lo que hay que poder
 mirar (riesgo R-2).
 
@@ -272,7 +273,7 @@ que más gana al cambiar de origen de datos.
 ## Core ML, y las dos cosas que la app tiene que respetar
 
 Los dos artefactos están convertidos y la traducción es **fiel**: contra XGBoost la diferencia
-máxima en 2 000 filas es de 0.000214 mg/dL en M-1 y 0.000229 en M-2, con una tolerancia de
+máxima en 2 000 filas es de 0.000259 mg/dL en M-1 y 0.000244 en M-2, con una tolerancia de
 0.001. Eso descarta el error que no se vería de otra forma, porque un árbol traducido al revés
 no falla: predice mal.
 
@@ -281,15 +282,15 @@ descubre en producción si no se escriben ahora:
 
 1. **Las características van como `Float` de 32 bits, no como `Double`.** Los umbrales del
    árbol son de 32 bits y XGBoost compara contra ellos con esa misma precisión. Mandando doble
-   precisión la predicción se desvía hasta **1.43 mg/dL** en M-1 (449 de 2 000 filas) y hasta
-   **3.46 mg/dL** en M-2 (662 filas). No revienta nada: da otro número.
+   precisión la predicción se desvía hasta **1.57 mg/dL** en M-1 (450 de 2 000 filas) y hasta
+   **2.78 mg/dL** en M-2 (621 filas). No revienta nada: da otro número.
 2. **Hay que comprobar en el iPhone físico que Core ML respeta la marca de valor que falta.**
-   De los 4 415 cortes del bosque de M-1, **472 mandan el faltante al hijo verdadero**. Si el
-   teléfono compara el `NaN` como cualquier número, la predicción se desvía hasta **21.6 mg/dL**
-   en M-1 y **36.5** en M-2. Esto no se puede comprobar aquí y queda como prueba de dispositivo.
+   Si el teléfono compara el `NaN` como cualquier número, la predicción se desvía hasta
+   **19.8 mg/dL** en M-1 y **35.9** en M-2. Esto no se puede comprobar aquí y queda como
+   prueba de dispositivo.
 
 El informe de cada conversión queda junto al artefacto, en
-`artifacts/m1-v0.1.0-simulador-coreml.json`, con los dos números y el entorno en que se midió.
+`artifacts/m1-v0.2.0-simulador-coreml.json`, con los dos números y el entorno en que se midió.
 
 ## El cuello de botella que apareció de paso
 
@@ -312,6 +313,62 @@ y M-2 a la vez en cuatro núcleos, con XGBoost y el bosque pidiendo los cuatro c
 
 Que las dos corridas nuevas dan exactamente los mismos números que las viejas, con el modelo
 idéntico byte por byte, es lo que confirma que el arreglo cambió el tiempo y nada más.
+
+## El error que apareció al ir a conectar Core ML en la app
+
+Antes de escribir la inferencia en el teléfono hacía falta comprobar que la app calcularía las
+características **igual** que las calculó el entrenamiento. De ahí salió que no lo hacían, y en
+tres sitios. La autoridad en los tres casos es
+`app/services/pipeline/caracteristicas.py` del backend, que se declara como tal en su propio
+encabezado y es quien alimenta al modelo en producción.
+
+1. **La insulina activa.** Este repositorio tenía su propia aproximación lineal, con un
+   docstring que afirmaba ser «la misma forma que usa el backend». No lo era: el backend importa
+   la curva exponencial de `referencia/reglas_clinicas.py`, y la app en Swift implementa esa
+   misma. A los 180 minutos la referencia deja **15.9 %** de la dosis activa y la recta decía
+   **40 %**; a los 240, 3.3 % contra 20 %. Con un bolo de 6 UI son hasta **1.45 UI de insulina
+   que no existen**, siempre de más a partir de la primera hora.
+2. **La ventana de los promedios móviles** incluía su borde inferior, así que `media_30`
+   promediaba siete lecturas donde producción promedia seis.
+3. **La hora del día** no contaba los segundos, y en el juego disperso salía de `epoch % 86400`
+   —los minutos en UTC, no los de la persona— y de la última lectura en vez del instante que se
+   predice, que puede ser de hace horas en modo sin sensor.
+
+El COB sí coincidía, comprobado valor por valor.
+
+### Cuánto movió las métricas: casi nada, y por qué
+
+Los artefactos `v0.2.0-simulador` son los de arriba, ya con las tres correcciones. Comparados
+con los `v0.1.0-simulador`, que se retiran:
+
+| M-1 | RMSE | MAE | A+B | Sens. hipo | Falsas |
+| --- | --- | --- | --- | --- | --- |
+| con la columna mala | 14.06 | 10.52 | 98.96 % | 59.2 % | 20.2 % |
+| corregida | 14.11 | 10.55 | 98.97 % | 59.5 % | 20.1 % |
+
+Centésimas. **Y eso no quiere decir que el error no importara**, quiere decir que `iob` pesa
+poco en este modelo. Medido, por ganancia:
+
+| característica | peso |
+| --- | --- |
+| `mg_dl` | 51.6 % |
+| `rezago_5` | 30.0 % |
+| `cob` | 6.9 % |
+| `derivada_1` | 4.2 % |
+| `iob` | **1.1 %** |
+| las otras diez, juntas | 6.2 % |
+
+**El 82 % del modelo es «dónde estás ahora» y «dónde estabas hace cinco minutos».**
+Distorsionar una columna que pesa el 1 % mueve la salida poco, y además los árboles reaprenden
+parte de la distorsión porque es monótona. Las dos lecturas que hay que sacar de ahí:
+
+- **La corrección era obligatoria de todas formas.** Las métricas de `v0.1.0` describían un
+  modelo alimentado con una columna que el backend y la app no producen; no describían el modelo
+  que correría. Que el número salga parecido se sabe *después* de medirlo, no antes.
+- **Esa tabla de pesos explica por qué M-1 no le gana a la persistencia por mucho.** Un modelo
+  cuyo 82 % es el valor actual y el de hace cinco minutos es, en buena medida, una persistencia
+  con mejores modales. Lo que le falta para ser más que eso no son hiperparámetros: son
+  características que aporten algo que la serie reciente no diga ya.
 
 ## Lo que este paso no hace
 
@@ -338,7 +395,7 @@ python -m src.datos.simulador --dias 28 --salida data/simulador
 python -m src.train.train_m1 --datos simulador
 python -m src.train.train_m2 --datos simulador
 python -m src.train.train_m3 --datos simulador
-python -m src.export.to_coreml --artefacto artifacts/m1-v0.1.0-simulador.json \
+python -m src.export.to_coreml --artefacto artifacts/m1-v0.2.0-simulador.json \
   --datos simulador
 python -m pytest tests/test_simulador.py tests/test_umbral_de_aviso.py -q
 ```
