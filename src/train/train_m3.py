@@ -65,19 +65,23 @@ def main() -> None:
         )
     print(f"{len(filas)} comidas de {len({f.sujeto for f in filas})} sujetos")
 
+    print("Valor del pico, un pliegue por sujeto:", flush=True)
     valor, valor_por_sujeto = evaluar_con_loso_simple(
         filas,
         juego=JUEGO,
         objetivo=lambda f: f.pico_mg_dl,
         construir_modelo=lambda: XGBoost(semilla=args.semilla),
         unidad="mg/dL",
+        avisar=lambda linea: print(linea, flush=True),
     )
+    print("Cuándo ocurre, otro pliegue por sujeto:", flush=True)
     cuando, _ = evaluar_con_loso_simple(
         filas,
         juego=JUEGO,
         objetivo=lambda f: f.pico_min,
         construir_modelo=lambda: XGBoost(semilla=args.semilla),
         unidad="min",
+        avisar=lambda linea: print(linea, flush=True),
     )
 
     print()
