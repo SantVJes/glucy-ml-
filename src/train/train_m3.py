@@ -98,7 +98,16 @@ def main() -> None:
     for sujeto, r in valor_por_sujeto.items():
         print(f"  {sujeto:8} n={r.n:4}  MAE={r.mae:6.2f} mg/dL")
 
-    if args.datos != "ohiot1dm":
+    if args.datos == "simulador":
+        print()
+        print(
+            "AVISO: los datos son del simulador fisiológico, no de personas. Estas métricas se "
+            "pueden reportar SOLO diciendo que son del simulador. A diferencia del generador de "
+            "juguete, aquí el pico sí llega cuando tiene que llegar: el modelo UVA/Padova "
+            "incluye el vaciado gástrico y la absorción intestinal, así que el objetivo «cuándo» "
+            "es el que más gana al cambiar de origen."
+        )
+    elif args.datos != "ohiot1dm":
         print()
         print(
             f"AVISO: los datos son '{args.datos}'. Estas métricas NO se pueden reportar. En las "

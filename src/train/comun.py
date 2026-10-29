@@ -10,7 +10,7 @@ import os
 from collections.abc import Sequence
 from pathlib import Path
 
-from src.datos import sintetico
+from src.datos import simulador, sintetico
 from src.features.ventanas import Fila, filas_densas
 from src.ingest.ohiot1dm import Registro, leer_carpeta
 from src.train.artefacto import guardar, manifiesto_de
@@ -19,34 +19,53 @@ from src.train.modelos import LSTM, Bosque, ExtrapolacionLineal, Persistencia, R
 
 SEMILLA_POR_OMISION = int(os.environ.get("GLUCY_SEMILLA", "42"))
 CARPETA_DATOS = os.environ.get("GLUCY_RUTA_DATOS", "data/ohiot1dm")
+CARPETA_SIMULADOR = os.environ.get("GLUCY_RUTA_SIMULADOR", simulador.CARPETA_POR_OMISION)
 CARPETA_ARTEFACTOS = os.environ.get("GLUCY_RUTA_ARTEFACTOS", "artifacts")
 
 
 def argumentos(descripcion: str) -> argparse.ArgumentParser:
     """Los argumentos que comparten los tres guiones.
 
-    `--datos sintetico` existe para poder correr el guion completo **sin** el conjunto de datos,
-    y por eso el manifiesto que sale marca el origen: una métrica de una corrida sintética no se
-    puede reportar y el archivo lo dice.
+    Hay tres orígenes y no son intercambiables. `ohiot1dm` son datos de doce personas reales y
+    es el único que deja reportar una métrica tal cual. `simulador` son corridas del simulador
+    fisiológico UVA/Padova por simglucose, que es el plan B acordado si el conjunto no llega
+    (ver `src/datos/simulador.py`): su métrica se puede reportar **diciendo que es del
+    simulador**. `sintetico` es el generador de juguete y sirve para probar que el guion corre,
+    nunca para reportar. El manifiesto que sale marca cuál fue, así que el número nunca llega al
+    documento final sin su etiqueta.
     """
     p = argparse.ArgumentParser(description=descripcion)
     p.add_argument(
         "--datos",
         default="ohiot1dm",
-        choices=("ohiot1dm", "sintetico"),
-        help="de dónde salen las series. 'sintetico' es para probar el guion, no para reportar",
+        choices=("ohiot1dm", "simulador", "sintetico"),
+        help=(
+            "de dónde salen las series. 'simulador' lee lo que dejó src.datos.simulador; "
+            "'sintetico' es para probar el guion, no para reportar"
+        ),
     )
     p.add_argument("--carpeta", default=CARPETA_DATOS, help="carpeta de los XML de OhioT1DM")
+    p.add_argument(
+        "--carpeta-simulador",
+        default=CARPETA_SIMULADOR,
+        help="carpeta con los JSON que dejó `python -m src.datos.simulador`",
+    )
     p.add_argument("--version", default="v0.1.0", help="versión del artefacto que se guarda")
     p.add_argument("--semilla", type=int, default=SEMILLA_POR_OMISION)
     p.add_argument(
         "--sujetos",
         type=int,
         default=12,
-        help="cuántas personas sintéticas generar; se ignora con --datos ohiot1dm",
+        help=(
+            "cuántas personas sintéticas generar; se ignora con --datos ohiot1dm y con "
+            "--datos simulador, donde el conjunto es el que haya en disco"
+        ),
     )
     p.add_argument(
-        "--dias", type=int, default=14, help="días por persona sintética; se ignora con ohiot1dm"
+        "--dias",
+        type=int,
+        default=14,
+        help="días por persona sintética; se ignora con ohiot1dm y con simulador",
     )
     p.add_argument(
         "--umbral-hipo",
@@ -71,14 +90,28 @@ def argumentos(descripcion: str) -> argparse.ArgumentParser:
 
 
 def registros(args: argparse.Namespace) -> list[Registro]:
-    """Las series, de los XML o del generador de juguete.
+    """Las series, de los XML, del simulador fisiológico o del generador de juguete.
 
-    Con `ohiot1dm` revienta si la carpeta está vacía en lugar de caer al generador: una corrida
-    que dice «ohiot1dm» en el manifiesto y entrenó con senos sería el peor error posible de este
+    Ningún origen cae a otro cuando falta: cada uno revienta con su mensaje. Una corrida que
+    dice «ohiot1dm» en el manifiesto y entrenó con senos sería el peor error posible de este
     repositorio, porque el número llegaría al documento final sin nada que lo delate.
+
+    El simulador **se lee de disco y no se simula aquí**: simular los dieciocho sujetos cuesta
+    más de una hora, y si cada guion lo hiciera por su cuenta, M-1, M-2 y M-3 acabarían
+    entrenados con tres conjuntos distintos y sus métricas no serían comparables entre sí.
     """
     if args.datos == "sintetico":
         return list(sintetico.conjunto(args.sujetos, dias=args.dias, semilla=args.semilla))
+
+    if args.datos == "simulador":
+        carpeta_sim = Path(args.carpeta_simulador)
+        if not sorted(carpeta_sim.glob("*.json")):
+            raise SystemExit(
+                f"no hay series del simulador en {carpeta_sim}. No están en el repositorio "
+                "(`data/` va en .gitignore) porque se regeneran de la semilla: "
+                f"`python -m src.datos.simulador --dias 28 --salida {carpeta_sim}`."
+            )
+        return simulador.cargar(carpeta_sim)
 
     carpeta = Path(args.carpeta)
     if not carpeta.is_dir():
@@ -91,6 +124,42 @@ def registros(args: argparse.Namespace) -> list[Registro]:
     if not leidos:
         raise SystemExit(f"la carpeta {carpeta} no tiene ningún .xml que leer")
     return leidos
+
+
+def _imprimir_umbral_de_aviso(corrida: Corrida, umbral_hipo: int) -> None:
+    """La comparación en hipoglucemias a igual tasa de falsas alarmas.
+
+    Se imprime siempre y no detrás de una bandera porque el cuadro de arriba, por sí solo,
+    invita a una conclusión equivocada: un modelo que encoge hacia la media sale con menos
+    sensibilidad **y** menos falsas alarmas que la persistencia, y de dos números que bajan a
+    la vez no se deduce nada. Lo que se compara aquí es cuánto caza cada uno cuando los dos
+    molestan igual de seguido (ver `src/eval/umbral_de_aviso.py`).
+    """
+    from src.eval.umbral_de_aviso import comparar
+
+    base = corrida.predicciones_base.get("persistencia")
+    if not base or not corrida.predicciones:
+        return
+    reales = [p.real for p in corrida.predicciones]
+    if [p.real for p in base] != reales:
+        # Las dos listas salen del mismo bucle de pliegues en el mismo orden; si alguna vez
+        # dejaran de coincidir, igualar las tasas compararía pares de distintas filas.
+        print("AVISO: las predicciones del modelo y de la persistencia no cuadran fila a fila")
+        return
+    try:
+        texto = comparar(
+            reales,
+            [p.predicho for p in corrida.predicciones],
+            [p.predicho for p in base],
+            umbral_clinico=umbral_hipo,
+        )
+    except ValueError as e:
+        print(f"no se pudo comparar el umbral de aviso: {e}")
+        return
+    print("Hipoglucemias, igualando la tasa de falsas alarmas:")
+    for linea in texto.splitlines():
+        print(f"  {linea}")
+    print()
 
 
 def filas_de(
@@ -164,12 +233,20 @@ def correr(
     print()
     print(resumen(corrida))
     print()
+    _imprimir_umbral_de_aviso(corrida, args.umbral_hipo)
     if not corrida.le_gana_a_la_persistencia:
         print(
             "AVISO: este modelo no le gana a la persistencia, así que no justifica su "
             "existencia. Antes de tocar hiperparámetros, revisar las características."
         )
-    if args.datos != "ohiot1dm":
+    if args.datos == "simulador":
+        print(
+            "AVISO: los datos son del simulador fisiológico, no de personas. Estas métricas "
+            "se pueden reportar SOLO diciendo que son del simulador, y el reporte tiene que "
+            "decir además que el controlador calcula el bolo con el conteo exacto de "
+            "carbohidratos, así que la variabilidad es menor que la de una persona real."
+        )
+    elif args.datos != "ohiot1dm":
         print(
             f"AVISO: los datos son '{args.datos}'. Estas métricas NO se pueden reportar: "
             "la señal es sintética y por construcción predecible."

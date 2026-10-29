@@ -16,7 +16,7 @@ Lo que este archivo garantiza, y que es lo que hace creíble un resultado:
 
 import math
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from src.eval.metrics import Resultado, evaluar
 from src.eval.particion import pliegues_loso
@@ -44,6 +44,14 @@ class Corrida:
     lineas_base: dict[str, Resultado]
     por_sujeto: dict[str, Resultado]
     sujetos: tuple[str, ...]
+
+    # Las predicciones de los pliegues, crudas. Se guardan porque una métrica agregada no deja
+    # responder después nada que no estuviera previsto: la pregunta de a qué umbral conviene
+    # avisar (`src/eval/umbral_de_aviso.py`) apareció al ver los resultados, y sin esto
+    # costaba volver a entrenar los dieciocho pliegues —media hora— cada vez que se quisiera
+    # mirar la curva desde otro sitio.
+    predicciones: tuple[Prediccion, ...] = ()
+    predicciones_base: dict[str, tuple[Prediccion, ...]] = field(default_factory=dict)
 
     @property
     def le_gana_a_la_persistencia(self) -> bool:
@@ -135,6 +143,8 @@ def evaluar_con_loso(
         lineas_base={n: _medir(ps, horizonte_min, umbral_hipo) for n, ps in por_linea_base.items()},
         por_sujeto=_por_sujeto(predicciones, horizonte_min, umbral_hipo),
         sujetos=sujetos,
+        predicciones=tuple(predicciones),
+        predicciones_base={n: tuple(ps) for n, ps in por_linea_base.items()},
     )
 
 
