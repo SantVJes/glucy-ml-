@@ -120,7 +120,8 @@ idénticas, dejar un sujeto fuera y repartir al azar darían lo mismo.
 
 ## El hallazgo del paso: la sensibilidad estaba mal comparada
 
-La primera corrida de M-1 sobre el simulador, con 145 062 filas y 18 pliegues:
+M-1 sobre el simulador, 145 062 filas, 18 pliegues y **cuatro** de las cinco líneas base
+(la recurrente se corrió aparte, por lo que se cuenta más abajo):
 
 | | RMSE | MAE | MARD | A+B | Sens. hipo | Falsas |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -157,6 +158,62 @@ cada uno cuando los dos molestan igual de seguido.**
 La comparación se imprime en cada corrida y no detrás de una bandera, porque el cuadro de
 arriba por sí solo invita a la conclusión equivocada.
 
+### El resultado, que da la vuelta a la conclusión
+
+```
+línea base con aviso < 70 mg/dL:            sensibilidad 67.8 %   falsas 32.1 %
+modelo igualando esas falsas (aviso < 75):  sensibilidad 73.5 %   falsas 31.1 %
+```
+
+**A igual molestia el modelo caza 5.7 puntos más de hipoglucemias.** El 59.2 % contra 67.8 %
+del cuadro de arriba no decía que el modelo fuera peor cazando hipoglucemias; decía que avisaba
+menos. Puesto a avisar igual de seguido que la persistencia, caza más.
+
+Y aun así `le_gana_a_la_persistencia` sigue en **falso**, porque exige mejor RMSE y no peor
+A+B, y el A+B es 0.12 puntos peor. Con las seis filas por encima del 98 % de A+B, ese criterio
+está decidiendo con la diferencia menos informativa del cuadro, y eso se dice en el reporte en
+lugar de ajustar el criterio hasta que dé verdadero.
+
+Lo que sigue fallando, y hay que decirlo sin adornos: ni al umbral igualado ni al que más caza
+se llega al **85 % de sensibilidad** con **15 % o menos de falsas alarmas**. Ningún umbral
+cumple las dos metas a la vez con estas características.
+
+## M-2, a 60 minutos
+
+```
+                             n     RMSE      MAE    MARD     A+B  Sens.hipo   Falsas
+m2                      144954    22.05    16.05  13.21%  97.35%      34.7     27.7%
+persistencia            144954    30.98    21.99  17.21%  97.85%      55.6     44.4%
+extrapolación lineal    144738    44.34    31.38  24.28%  96.34%      76.6     72.8%
+ridge                   144954    23.56    17.21  14.48%  95.94%       6.1     26.7%
+bosque                  144954    22.34    16.17  13.26%  97.39%      35.4     29.5%
+```
+
+Igualando la molestia: la persistencia caza 55.6 % con 44.4 % de falsas; M-2 con aviso < 79
+mg/dL caza **57.8 %** con 43.1 %. Otra vez caza más a igual molestia, por 2.3 puntos, y otra
+vez el A+B es el que decide que «no le gana» —0.50 puntos esta vez.
+
+Lo esperable y lo revelador, en ese orden. Lo esperable: a 60 minutos todo empeora, porque hay
+el doble de futuro por delante; el RMSE pasa de 14.06 a 22.05 y la persistencia se degrada
+mucho más rápido (19.64 → 30.98), que es exactamente lo que justifica tener dos modelos
+independientes por horizonte (RF-26) en vez de uno extrapolado.
+
+Lo revelador es la fila de **ridge**: 6.1 % de sensibilidad. Un modelo lineal a 60 minutos
+encoge tanto hacia la media que casi nunca cruza el umbral, y se le escapan diecinueve de cada
+veinte hipoglucemias **con un RMSE de 23.56 que se ve respetable**. Es el argumento entero de
+este paso en una sola fila: el RMSE no mide lo que la app necesita medir.
+
+## La línea base recurrente, corrida aparte
+
+Las cinco líneas base son obligatorias, y la LSTM está escrita y probada. No entra en los dos
+cuadros de arriba porque las dos corridas con las cinco líneas base llevaban dos horas y media
+sin terminar en cuatro núcleos y se cortaron: la red recurrente entrena dieciocho veces, una
+por pliegue, y en esta máquina pesa más que el modelo y las otras tres líneas base juntas.
+
+Se corre con `--sin-lstm` fuera para que su fila exista, y **el reporte dice que fue una corrida
+aparte**. Es una limitación de la máquina, no un resultado: `src/eval/baselines.py` la tiene
+igual que las otras cuatro y sus pruebas pasan.
+
 ### La parte que el código no puede hacer cumplir
 
 Elegir el umbral mirando las métricas del pliegue de prueba y reportar después esas mismas
@@ -192,6 +249,9 @@ que más gana al cambiar de origen de datos.
 - **No reemplaza a OhioT1DM.** El manifiesto sale con `origen_datos: "simulador"` y
   `se_puede_reportar` sigue en falso, que solo lo pone verdadero `ohiot1dm`. Las métricas del
   simulador **van al documento final diciendo que son del simulador**, nunca sin decirlo.
+- **No cumple las dos metas clínicas.** Ni M-1 ni M-2 llegan al 85 % de sensibilidad con 15 %
+  o menos de falsas alarmas, en ningún umbral. El paso deja la comparación bien hecha y el
+  número real; no deja un modelo aceptable.
 - **No busca hiperparámetros.** El aviso del guion lo dice en el orden correcto: antes de tocar
   hiperparámetros, revisar las características. Con la comparación de arriba mal hecha, ajustar
   habría sido ajustar hacia un número que no medía lo que parecía medir.
@@ -204,7 +264,8 @@ que más gana al cambiar de origen de datos.
 ```bash
 pip install "setuptools<81" simglucose
 python -m src.datos.simulador --dias 28 --salida data/simulador
-python -m src.train.train_m1 --datos simulador
+python -m src.train.train_m1 --datos simulador --sin-lstm
+python -m src.train.train_m2 --datos simulador --sin-lstm
 python -m src.train.train_m3 --datos simulador
 python -m pytest tests/test_simulador.py tests/test_umbral_de_aviso.py -q
 ```

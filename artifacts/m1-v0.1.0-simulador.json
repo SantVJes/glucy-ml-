@@ -1,0 +1,464 @@
+{
+  "modelo": "m1",
+  "version": "v0.1.0-simulador",
+  "algoritmo": "xgboost",
+  "horizonte_min": 30,
+  "juego": "denso",
+  "caracteristicas": [
+    "mg_dl",
+    "rezago_5",
+    "rezago_10",
+    "rezago_15",
+    "rezago_30",
+    "rezago_60",
+    "derivada_1",
+    "derivada_2",
+    "media_30",
+    "media_60",
+    "cob",
+    "iob",
+    "hora_sin",
+    "hora_cos",
+    "dia_semana"
+  ],
+  "semilla": 42,
+  "hiperparametros": {
+    "n_estimators": 300,
+    "max_depth": 4,
+    "learning_rate": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "min_child_weight": 10,
+    "reg_lambda": 1.0,
+    "objective": "reg:squarederror",
+    "random_state": 42
+  },
+  "origen_datos": "simulador",
+  "n_entrenamiento": 145062,
+  "n_prueba": 145062,
+  "sujetos_entrenamiento": [
+    "adolescent#001",
+    "adolescent#002",
+    "adolescent#003",
+    "adolescent#004",
+    "adolescent#005",
+    "adolescent#007",
+    "adolescent#009",
+    "adolescent#010",
+    "adult#001",
+    "adult#002",
+    "adult#003",
+    "adult#004",
+    "adult#005",
+    "adult#006",
+    "adult#007",
+    "adult#008",
+    "adult#009",
+    "adult#010"
+  ],
+  "sujetos_prueba": [],
+  "metricas": {
+    "n": 145062,
+    "horizonte_min": 30,
+    "rmse": 14.055528024253606,
+    "mae": 10.517967835579668,
+    "mard": 8.747380715680876,
+    "clarke_ab": 98.95768705794764,
+    "clarke_reparto": {
+      "A": 92.91475369152501,
+      "B": 6.042933366422633,
+      "C": 0.0,
+      "D": 1.0423129420523638,
+      "E": 0.0
+    },
+    "sensibilidad_hipo": 59.24759695061319,
+    "falsas_alarmas": 20.165252344796784
+  },
+  "protocolo": "Validación cruzada dejando un sujeto fuera sobre 18 sujetos; las métricas son de esos pliegues. El artefacto que se publica se entrenó después con todos los sujetos, con los mismos hiperparámetros y la misma semilla.",
+  "metricas_por_sujeto": {
+    "adolescent#001": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 12.454293627115517,
+      "mae": 9.671505058609817,
+      "mard": 8.198501337470315,
+      "clarke_ab": 99.86350663854076,
+      "clarke_reparto": {
+        "A": 93.69648839806428,
+        "B": 6.1670182404764855,
+        "C": 0.0,
+        "D": 0.13649336145923813,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 5.555555555555555,
+      "falsas_alarmas": 75.0
+    },
+    "adolescent#002": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 17.37303366652285,
+      "mae": 12.794389217721516,
+      "mard": 9.361278173628092,
+      "clarke_ab": 98.30003722546222,
+      "clarke_reparto": {
+        "A": 91.11552301774414,
+        "B": 7.184514207718079,
+        "C": 0.0,
+        "D": 1.6999627745377839,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 66.96696696696696,
+      "falsas_alarmas": 21.891418563922944
+    },
+    "adolescent#003": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 12.488677172763289,
+      "mae": 9.611501046594341,
+      "mard": 8.13948056728102,
+      "clarke_ab": 98.7343342846507,
+      "clarke_reparto": {
+        "A": 94.13078545725276,
+        "B": 4.60354882739794,
+        "C": 0.0,
+        "D": 1.265665715349299,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 51.09717868338558,
+      "falsas_alarmas": 30.042918454935624
+    },
+    "adolescent#004": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 13.284622984420828,
+      "mae": 10.00663005291569,
+      "mard": 8.747271607211681,
+      "clarke_ab": 97.95259957811143,
+      "clarke_reparto": {
+        "A": 93.15051495222733,
+        "B": 4.802084625884104,
+        "C": 0.0,
+        "D": 2.0474004218885717,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 58.064516129032256,
+      "falsas_alarmas": 20.774647887323944
+    },
+    "adolescent#005": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 15.651744789957139,
+      "mae": 11.933169643365508,
+      "mard": 9.400024040011996,
+      "clarke_ab": 98.59784092319147,
+      "clarke_reparto": {
+        "A": 92.92716217893039,
+        "B": 5.670678744261075,
+        "C": 0.0,
+        "D": 1.402159076808537,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 68.87661141804789,
+      "falsas_alarmas": 16.88888888888889
+    },
+    "adolescent#007": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 21.33484993044723,
+      "mae": 15.351728444135723,
+      "mard": 10.782373971790006,
+      "clarke_ab": 97.75406377962527,
+      "clarke_reparto": {
+        "A": 87.45501923315548,
+        "B": 10.299044546469785,
+        "C": 0.0,
+        "D": 2.245936220374736,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 63.63636363636363,
+      "falsas_alarmas": 18.858131487889274
+    },
+    "adolescent#009": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 12.240160965675985,
+      "mae": 9.5270002025738,
+      "mard": 7.818543251284425,
+      "clarke_ab": 99.19344831864996,
+      "clarke_reparto": {
+        "A": 95.03660503784589,
+        "B": 4.15684328080407,
+        "C": 0.0,
+        "D": 0.8065516813500434,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 49.779735682819386,
+      "falsas_alarmas": 32.33532934131737
+    },
+    "adolescent#010": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 11.448564963551725,
+      "mae": 8.693822922167266,
+      "mard": 7.153259011738226,
+      "clarke_ab": 99.93795756297307,
+      "clarke_reparto": {
+        "A": 96.26504529097903,
+        "B": 3.672912271994044,
+        "C": 0.0,
+        "D": 0.06204243702692642,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 0.0,
+      "falsas_alarmas": 100.0
+    },
+    "adult#001": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 12.167600773091053,
+      "mae": 9.409522295251902,
+      "mard": 8.313297363156433,
+      "clarke_ab": 98.42412209951607,
+      "clarke_reparto": {
+        "A": 92.97679612855192,
+        "B": 5.4473259709641395,
+        "C": 0.0,
+        "D": 1.575877900483931,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 36.21621621621622,
+      "falsas_alarmas": 34.63414634146341
+    },
+    "adult#002": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 13.138176088917916,
+      "mae": 9.94290165539738,
+      "mard": 9.483988515154543,
+      "clarke_ab": 98.80878520908301,
+      "clarke_reparto": {
+        "A": 89.84985730239484,
+        "B": 8.958927906688174,
+        "C": 0.0,
+        "D": 1.1912147909169872,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 24.152542372881356,
+      "falsas_alarmas": 54.76190476190476
+    },
+    "adult#003": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 14.214245110252715,
+      "mae": 10.976876771942946,
+      "mard": 8.226345492271223,
+      "clarke_ab": 100.0,
+      "clarke_reparto": {
+        "A": 94.34172974314431,
+        "B": 5.6582702568556895,
+        "C": 0.0,
+        "D": 0.0,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": null,
+      "falsas_alarmas": 0.0
+    },
+    "adult#004": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 15.054592887241792,
+      "mae": 11.300676998493556,
+      "mard": 8.590829907821163,
+      "clarke_ab": 99.9131405881623,
+      "clarke_reparto": {
+        "A": 93.18774041444348,
+        "B": 6.725400173718824,
+        "C": 0.0,
+        "D": 0.08685941183769698,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 0.0,
+      "falsas_alarmas": 100.0
+    },
+    "adult#005": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 13.07293186125779,
+      "mae": 9.926680762116007,
+      "mard": 8.404065562094656,
+      "clarke_ab": 99.54088596600074,
+      "clarke_reparto": {
+        "A": 92.95197915374116,
+        "B": 6.5889068122595855,
+        "C": 0.0,
+        "D": 0.4591140339992555,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 46.31578947368421,
+      "falsas_alarmas": 35.294117647058826
+    },
+    "adult#006": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 12.474286797308178,
+      "mae": 9.460111620559463,
+      "mard": 7.6771967474247145,
+      "clarke_ab": 99.64015386524383,
+      "clarke_reparto": {
+        "A": 95.08623898746742,
+        "B": 4.553914877776399,
+        "C": 0.0,
+        "D": 0.3598461347561732,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 39.42307692307692,
+      "falsas_alarmas": 32.78688524590164
+    },
+    "adult#007": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 11.994109424006089,
+      "mae": 9.039194611473768,
+      "mard": 7.692115014279842,
+      "clarke_ab": 99.8262811763246,
+      "clarke_reparto": {
+        "A": 95.12346444968358,
+        "B": 4.702816726641022,
+        "C": 0.0,
+        "D": 0.17371882367539396,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 48.648648648648646,
+      "falsas_alarmas": 43.75
+    },
+    "adult#008": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 12.957593132012418,
+      "mae": 9.932436548824194,
+      "mard": 9.063788821535493,
+      "clarke_ab": 99.29271621789304,
+      "clarke_reparto": {
+        "A": 91.69872192579724,
+        "B": 7.593994292095793,
+        "C": 0.0,
+        "D": 0.7072837821069612,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 20.66115702479339,
+      "falsas_alarmas": 59.67741935483871
+    },
+    "adult#009": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 15.32531196698932,
+      "mae": 12.123450974987048,
+      "mard": 12.801814497210788,
+      "clarke_ab": 95.942424618439,
+      "clarke_reparto": {
+        "A": 88.49733217520784,
+        "B": 7.44509244323117,
+        "C": 0.0,
+        "D": 4.057575381560988,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 72.41176470588235,
+      "falsas_alarmas": 6.030534351145038
+    },
+    "adult#010": {
+      "n": 8059,
+      "horizonte_min": 30,
+      "rmse": 12.7725235355263,
+      "mae": 9.621822213304085,
+      "mard": 7.598679000891146,
+      "clarke_ab": 99.51606899118997,
+      "clarke_reparto": {
+        "A": 94.97456260081896,
+        "B": 4.541506390371014,
+        "C": 0.0,
+        "D": 0.48393100881002604,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 12.5,
+      "falsas_alarmas": 76.92307692307692
+    }
+  },
+  "metricas_lineas_base": {
+    "persistencia": {
+      "n": 145062,
+      "horizonte_min": 30,
+      "rmse": 19.635088603572953,
+      "mae": 14.075138518623383,
+      "mard": 11.154025352208638,
+      "clarke_ab": 99.0762570487102,
+      "clarke_reparto": {
+        "A": 85.3669465469937,
+        "B": 13.709310501716507,
+        "C": 0.0006893604114102935,
+        "D": 0.9189174284099213,
+        "E": 0.004136162468461761
+      },
+      "sensibilidad_hipo": 67.79913821677162,
+      "falsas_alarmas": 32.133377571333774
+    },
+    "extrapolacion_lineal": {
+      "n": 144954,
+      "horizonte_min": 30,
+      "rmse": 24.14226277665528,
+      "mae": 17.84480248864271,
+      "mard": 14.38061624138177,
+      "clarke_ab": 99.1611131807332,
+      "clarke_reparto": {
+        "A": 76.03791547663397,
+        "B": 23.12319770409923,
+        "C": 0.0841646315382811,
+        "D": 0.7512728175835093,
+        "E": 0.003449370145011521
+      },
+      "sensibilidad_hipo": 75.27345044746437,
+      "falsas_alarmas": 58.37991386419866
+    },
+    "ridge": {
+      "n": 145062,
+      "horizonte_min": 30,
+      "rmse": 14.88479727034563,
+      "mae": 11.130845689719573,
+      "mard": 9.363560902353987,
+      "clarke_ab": 98.45583267844094,
+      "clarke_reparto": {
+        "A": 91.21616963781004,
+        "B": 7.239663040630902,
+        "C": 0.0006893604114102935,
+        "D": 1.542788600736237,
+        "E": 0.0006893604114102935
+      },
+      "sensibilidad_hipo": 45.93967517401392,
+      "falsas_alarmas": 17.401668653158524
+    },
+    "bosque": {
+      "n": 145062,
+      "horizonte_min": 30,
+      "rmse": 14.236593423575277,
+      "mae": 10.595833302923372,
+      "mard": 8.769318471078826,
+      "clarke_ab": 98.96389130165034,
+      "clarke_reparto": {
+        "A": 92.91130688946795,
+        "B": 6.0525844121823775,
+        "C": 0.0006893604114102935,
+        "D": 1.0354193379382608,
+        "E": 0.0
+      },
+      "sensibilidad_hipo": 59.54590652966523,
+      "falsas_alarmas": 20.70183182520415
+    }
+  },
+  "creado_utc": "2026-10-29T19:41:55+00:00",
+  "entorno": {
+    "python": "3.13.17",
+    "sistema": "Linux x86_64",
+    "xgboost": "3.4.1",
+    "scikit-learn": "1.9.1"
+  },
+  "version_del_manifiesto": 1
+}
