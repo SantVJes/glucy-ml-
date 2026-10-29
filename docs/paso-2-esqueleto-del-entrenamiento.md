@@ -155,11 +155,8 @@ no se ve leyendo:
 
 ## Lo que falta, dicho con nombre
 
-- **La línea base LSTM.** El protocolo pide cinco y hay cuatro. Necesita un marco de redes
-  —PyTorch o Keras—, que son cientos de megabytes y una decisión que conviene tomar con los
-  datos delante: con doce sujetos y ocho semanas cada uno puede que una red recurrente no se
-  sostenga, y eso se sabe midiendo. **Mientras no esté, el reporte tiene que decir que falta**,
-  no omitirla de la tabla.
+- ~~**La línea base LSTM.**~~ Escrita el 29/10/2026, ver
+  [`paso-4-linea-base-lstm.md`](paso-4-linea-base-lstm.md). Las cinco del protocolo están.
 - **SHAP.** Las cinco contribuciones por predicción, que son lo que consume el servicio de
   explicación del backend. Van después del primer modelo entrenado con datos de verdad, porque
   explicar un modelo entrenado con senos no sirve para nada.

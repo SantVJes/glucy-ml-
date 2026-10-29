@@ -235,8 +235,154 @@ def test_guardar_xgboost_deja_un_archivo_con_la_version_en_el_nombre(tmp_path):
     assert ruta.endswith("m1-v0.1.0.ubj")
 
 
-def test_la_lstm_esta_declarada_como_pendiente():
-    """El protocolo pide cinco líneas base y hay cuatro. El reporte tiene que decirlo."""
-    from src.train.modelos import FALTA_LSTM
+# --- La quinta línea base, la recurrente ----------------------------------------------------
 
-    assert "marco de redes" in FALTA_LSTM
+
+def test_la_lstm_arma_su_secuencia_con_los_rezagos_de_la_fila():
+    """Sin torch tampoco: la forma de la secuencia es aritmética, no red.
+
+    Seis pasos —`rezago_60, rezago_30, rezago_15, rezago_10, rezago_5, mg_dl`— y en cada paso
+    la glucosa de ese instante más el contexto repetido. Es lo que hace que la red vea la misma
+    información que XGBoost sobre las mismas filas.
+    """
+    pytest.importorskip("numpy")
+    import numpy as np
+
+    from src.train.modelos import LSTM
+
+    modelo = LSTM(semilla=1)
+    # Se ajustan a mano el centro y la escala para mirar solo el armado.
+    modelo._centro = np.zeros(len(CARACTERISTICAS_DENSAS))
+    modelo._escala = np.ones(len(CARACTERISTICAS_DENSAS))
+
+    fila = [0.0] * len(CARACTERISTICAS_DENSAS)
+    for nombre, valor in (
+        ("rezago_60", 60.0),
+        ("rezago_30", 30.0),
+        ("rezago_15", 15.0),
+        ("rezago_10", 10.0),
+        ("rezago_5", 5.0),
+        ("mg_dl", 1.0),
+        ("cob", 42.0),
+    ):
+        fila[CARACTERISTICAS_DENSAS.index(nombre)] = valor
+
+    secuencias = modelo._secuencias([fila])
+
+    assert secuencias.shape == (1, 6, len(CARACTERISTICAS_DENSAS) - 5)
+    # La primera columna de cada paso es la glucosa, del punto más viejo al más nuevo.
+    assert list(secuencias[0, :, 0]) == [60.0, 30.0, 15.0, 10.0, 5.0, 1.0]
+    # Y el contexto se repite igual en los seis pasos.
+    assert len({tuple(paso[1:]) for paso in secuencias[0]}) == 1
+    assert 42.0 in secuencias[0, 0, 1:]
+
+
+def test_la_lstm_se_niega_con_el_juego_disperso():
+    """Sobre un solo punto no hay serie que recorrer, y una LSTM ahí no es una LSTM."""
+    from src.features.features import CARACTERISTICAS_DISPERSAS
+    from src.train.modelos import LSTM
+
+    with pytest.raises(ValueError, match="no hay serie"):
+        LSTM(semilla=1, caracteristicas=CARACTERISTICAS_DISPERSAS)
+
+
+def test_la_lstm_imputa_los_faltantes_con_la_mediana_del_entrenamiento():
+    """Una red no acepta `NaN`, así que la imputación es parte de esta línea base y conviene
+    recordarlo al leer su número: si sale mal, parte puede ser la mediana."""
+    pytest.importorskip("numpy")
+    import numpy as np
+
+    from src.train.modelos import LSTM
+
+    modelo = LSTM(semilla=1)
+    modelo._centro = np.full(len(CARACTERISTICAS_DENSAS), 7.0)
+    modelo._escala = np.ones(len(CARACTERISTICAS_DENSAS))
+
+    fila = [float("nan")] * len(CARACTERISTICAS_DENSAS)
+    secuencias = modelo._secuencias([fila])
+
+    assert not np.isnan(secuencias).any()
+    assert float(secuencias[0, 0, 0]) == 0.0  # 7 imputado, menos el centro 7
+
+
+def test_la_lstm_aprende_una_tendencia_y_le_gana_a_la_persistencia():
+    """La prueba que de verdad importa: que esté bien entrenada.
+
+    Una línea base mal entrenada adula al modelo del proyecto, que es la dirección en la que no
+    conviene equivocarse. Sobre una serie con tendencia clara, la recurrente tiene que quedar
+    por debajo del error de repetir el valor de ahora.
+    """
+    pytest.importorskip("torch")
+    import numpy as np
+
+    from src.train.modelos import LSTM, Persistencia
+
+    generador = np.random.default_rng(3)
+    x, y = [], []
+    for _ in range(600):
+        inicio = float(generador.uniform(80, 200))
+        pendiente = float(generador.uniform(-1.0, 1.0))
+        fila = [0.0] * len(CARACTERISTICAS_DENSAS)
+        for nombre, atras in (
+            ("rezago_60", 60),
+            ("rezago_30", 30),
+            ("rezago_15", 15),
+            ("rezago_10", 10),
+            ("rezago_5", 5),
+            ("mg_dl", 0),
+        ):
+            fila[CARACTERISTICAS_DENSAS.index(nombre)] = inicio - pendiente * atras
+        x.append(fila)
+        # El objetivo sigue la misma tendencia media hora más adelante.
+        y.append(inicio + pendiente * 30)
+
+    modelo = LSTM(semilla=7, epocas=120, paciencia=15)
+    modelo.ajustar(x, y)
+
+    error_lstm = _rmse(y, modelo.predecir(x))
+    error_persistencia = _rmse(y, Persistencia().predecir(x))
+
+    assert error_lstm < error_persistencia, (error_lstm, error_persistencia)
+
+
+def test_la_lstm_es_repetible_con_la_misma_semilla():
+    """Un resultado que no se puede repetir no sirve para un trabajo que se va a evaluar."""
+    pytest.importorskip("torch")
+
+    from src.train.modelos import LSTM
+
+    x, y = _datos_de_juguete()
+    predicciones = []
+    for _ in range(2):
+        modelo = LSTM(semilla=11, epocas=5, paciencia=5)
+        modelo.ajustar(x, y)
+        predicciones.append(modelo.predecir(x))
+
+    assert predicciones[0] == predicciones[1]
+
+
+def test_la_lstm_reporta_en_que_epoca_se_quedo():
+    """Las épocas usadas van al manifiesto: «60 máximas» no dice nada si paró en la 12."""
+    pytest.importorskip("torch")
+
+    from src.train.modelos import LSTM
+
+    x, y = _datos_de_juguete()
+    modelo = LSTM(semilla=5, epocas=6, paciencia=6)
+    modelo.ajustar(x, y)
+
+    assert 1 <= modelo.hiperparametros["epocas_usadas"] <= 6
+    assert modelo.hiperparametros["validacion"].startswith("último 20 %")
+
+
+def test_la_lstm_no_predice_sin_ajustar():
+    pytest.importorskip("torch")
+
+    from src.train.modelos import LSTM
+
+    with pytest.raises(RuntimeError, match="ajustar"):
+        LSTM(semilla=1).predecir([[0.0] * len(CARACTERISTICAS_DENSAS)])
+
+
+def _rmse(reales, predichos) -> float:
+    return (sum((r - p) ** 2 for r, p in zip(reales, predichos, strict=True)) / len(reales)) ** 0.5
