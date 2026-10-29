@@ -25,6 +25,10 @@ data/*
 # métricas, no las corridas intermedias.
 artifacts/tmp/
 artifacts/**/*.bin
+# Las figuras del cuaderno se regeneran con `python -m src.eval.cuaderno`. Una figura
+# versionada se queda con los números de la corrida en que se guardó y sigue enseñándolos
+# cuando el clasificador cambia, sin avisar. Ya pasó con la rejilla de Clarke.
+artifacts/figuras/
 mlruns/
 wandb/
 
