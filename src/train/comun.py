@@ -126,6 +126,42 @@ def registros(args: argparse.Namespace) -> list[Registro]:
     return leidos
 
 
+def _imprimir_umbral_de_aviso(corrida: Corrida, umbral_hipo: int) -> None:
+    """La comparación en hipoglucemias a igual tasa de falsas alarmas.
+
+    Se imprime siempre y no detrás de una bandera porque el cuadro de arriba, por sí solo,
+    invita a una conclusión equivocada: un modelo que encoge hacia la media sale con menos
+    sensibilidad **y** menos falsas alarmas que la persistencia, y de dos números que bajan a
+    la vez no se deduce nada. Lo que se compara aquí es cuánto caza cada uno cuando los dos
+    molestan igual de seguido (ver `src/eval/umbral_de_aviso.py`).
+    """
+    from src.eval.umbral_de_aviso import comparar
+
+    base = corrida.predicciones_base.get("persistencia")
+    if not base or not corrida.predicciones:
+        return
+    reales = [p.real for p in corrida.predicciones]
+    if [p.real for p in base] != reales:
+        # Las dos listas salen del mismo bucle de pliegues en el mismo orden; si alguna vez
+        # dejaran de coincidir, igualar las tasas compararía pares de distintas filas.
+        print("AVISO: las predicciones del modelo y de la persistencia no cuadran fila a fila")
+        return
+    try:
+        texto = comparar(
+            reales,
+            [p.predicho for p in corrida.predicciones],
+            [p.predicho for p in base],
+            umbral_clinico=umbral_hipo,
+        )
+    except ValueError as e:
+        print(f"no se pudo comparar el umbral de aviso: {e}")
+        return
+    print("Hipoglucemias, igualando la tasa de falsas alarmas:")
+    for linea in texto.splitlines():
+        print(f"  {linea}")
+    print()
+
+
 def filas_de(
     registros_: Sequence[Registro], *, horizonte_min: int, absorcion_min: float = 180
 ) -> list[Fila]:
@@ -197,6 +233,7 @@ def correr(
     print()
     print(resumen(corrida))
     print()
+    _imprimir_umbral_de_aviso(corrida, args.umbral_hipo)
     if not corrida.le_gana_a_la_persistencia:
         print(
             "AVISO: este modelo no le gana a la persistencia, así que no justifica su "
