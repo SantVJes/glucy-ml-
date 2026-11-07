@@ -35,7 +35,7 @@ OhioT1DM y por eso los campos de la app se diseñaron así; traducirlas introduc
 """
 
 import xml.etree.ElementTree as ET
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -297,3 +297,54 @@ def leer_carpeta(carpeta: str | Path) -> Iterator[Registro]:
     """
     for ruta in sorted(Path(carpeta).glob("*.xml")):
         yield leer_archivo(ruta)
+
+
+def unir(partes: Iterable[Registro]) -> Registro:
+    """Las partes de una misma persona como un solo registro, en orden de tiempo.
+
+    OhioT1DM entrega a cada persona en dos archivos, `-ws-training` y `-ws-testing`, que son el
+    principio y el final de la misma serie. Esa partición es la del concurso del conjunto; la
+    de Glucy es **por persona** (dejando un sujeto fuera), así que aquí las dos mitades vuelven
+    a ser una sola serie. Si se leyeran como dos registros, la misma persona quedaría a la vez
+    en entrenamiento y en prueba, que es justo la fuga que la partición por sujeto evita.
+
+    Una lectura repetida en las dos mitades —misma hora, mismo origen— se cuenta una vez.
+    """
+    partes = list(partes)
+    if not partes:
+        raise ValueError("no hay partes que unir")
+    sujetos = {p.sujeto for p in partes}
+    if len(sujetos) != 1:
+        raise ValueError(f"se intentó unir a personas distintas: {sorted(sujetos)}")
+
+    vistas: set[tuple[datetime, bool]] = set()
+    lecturas: list[Lectura] = []
+    for lectura in sorted((x for p in partes for x in p.lecturas), key=lambda f: f.ts):
+        clave = (lectura.ts, lectura.del_sensor)
+        if clave in vistas:
+            continue
+        vistas.add(clave)
+        lecturas.append(lectura)
+
+    secciones = {s for p in partes for s in p.eventos}
+    eventos = {
+        s: tuple(sorted((e for p in partes for e in p.eventos.get(s, ())), key=lambda x: x.ts))
+        for s in secciones
+    }
+    return Registro(sujeto=partes[0].sujeto, lecturas=tuple(lecturas), eventos=eventos)
+
+
+def leer_conjunto(carpeta: str | Path) -> list[Registro]:
+    """El conjunto completo como se descomprime: `2018/` y `2020/`, cada uno con `train/` y `test/`.
+
+    Busca los XML en todas las subcarpetas y une los de cada persona con `unir`. Devuelve una
+    persona por registro, ordenadas por identificador, para que dos corridas partan igual.
+    """
+    por_sujeto: dict[str, list[Registro]] = {}
+    for ruta in sorted(Path(carpeta).rglob("*.xml")):
+        if ruta.name.startswith("._"):
+            # Los metadatos que deja el compresor de macOS llevan el mismo nombre con «._».
+            continue
+        registro = leer_archivo(ruta)
+        por_sujeto.setdefault(registro.sujeto, []).append(registro)
+    return [unir(por_sujeto[s]) for s in sorted(por_sujeto)]
