@@ -20,7 +20,9 @@ from src.ingest.ohiot1dm import (
     esquema_encontrado,
     leer_archivo,
     leer_carpeta,
+    leer_conjunto,
     leer_fecha,
+    unir,
 )
 
 XML = """<patient id="559" weight="99" insulin_type="Novolog">
@@ -255,3 +257,54 @@ def test_la_carpeta_se_lee_en_orden_de_nombre(tmp_path):
 
 def test_una_carpeta_sin_xml_no_da_registros(tmp_path):
     assert list(leer_carpeta(tmp_path)) == []
+
+
+# --- El conjunto tal como se descomprime --------------------------------------------------
+
+PRUEBA_559 = """<patient id="559" weight="99" insulin_type="Novolog">
+  <glucose_level>
+    <event ts="07-12-2021 00:10:00" value="131"/>
+    <event ts="07-12-2021 00:15:00" value="125"/>
+  </glucose_level>
+  <meal>
+    <event ts="07-12-2021 12:00:00" type="lunch" carbs="60"/>
+  </meal>
+</patient>
+"""
+
+
+def _conjunto(tmp_path):
+    """La forma en que llega: 2018/ y 2020/, cada uno con train/ y test/."""
+    for anio, sujeto in (("2018", "559"), ("2020", "540")):
+        for parte, texto in (("train", XML), ("test", PRUEBA_559)):
+            carpeta = tmp_path / anio / parte
+            carpeta.mkdir(parents=True, exist_ok=True)
+            sufijo = "training" if parte == "train" else "testing"
+            (carpeta / f"{sujeto}-ws-{sufijo}.xml").write_text(
+                texto.replace('id="559"', f'id="{sujeto}"'), encoding="utf-8"
+            )
+    # El compresor de macOS deja metadatos con el mismo nombre y «._» delante.
+    (tmp_path / "2018" / "train" / "._559-ws-training.xml").write_bytes(b"\x00\x05")
+    return tmp_path
+
+
+def test_el_conjunto_da_una_persona_por_registro(tmp_path):
+    """Si las dos mitades fueran dos registros, la misma persona quedaría en entrenamiento
+    y en prueba a la vez: la fuga que la partición por sujeto existe para evitar."""
+    registros = leer_conjunto(_conjunto(tmp_path))
+    assert [r.sujeto for r in registros] == ["540", "559"]
+
+
+def test_las_dos_mitades_quedan_en_una_serie_ordenada_y_sin_repetir(tmp_path):
+    (r559,) = [r for r in leer_conjunto(_conjunto(tmp_path)) if r.sujeto == "559"]
+    sensor = [(x.ts.minute, x.mg_dl) for x in r559.lecturas if x.del_sensor]
+    # 00:10 viene en las dos mitades y se cuenta una vez; 00:15 solo en la de prueba.
+    assert sensor == [(0, 142.0), (5, 138.0), (10, 131.0), (15, 125.0)]
+    assert [e.valor for e in r559.eventos["meal"]] == [45.0, 60.0]
+
+
+def test_unir_a_dos_personas_distintas_revienta(archivo, tmp_path):
+    otra = tmp_path / "563-ws-training.xml"
+    otra.write_text(XML.replace('id="559"', 'id="563"'), encoding="utf-8")
+    with pytest.raises(ValueError, match="personas distintas"):
+        unir([leer_archivo(archivo), leer_archivo(otra)])

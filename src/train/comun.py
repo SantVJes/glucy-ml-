@@ -12,7 +12,7 @@ from pathlib import Path
 
 from src.datos import simulador, sintetico
 from src.features.ventanas import Fila, filas_densas
-from src.ingest.ohiot1dm import Registro, leer_carpeta
+from src.ingest.ohiot1dm import Registro, leer_conjunto
 from src.train.artefacto import guardar, manifiesto_de
 from src.train.entrenar import Corrida, evaluar_con_loso, resumen
 from src.train.modelos import LSTM, Bosque, ExtrapolacionLineal, Persistencia, Ridge, XGBoost
@@ -120,7 +120,9 @@ def registros(args: argparse.Namespace) -> list[Registro]:
             "pedirlo y descomprimirlo ahí (ver data/README.md). Para probar el guion sin datos, "
             "--datos sintetico."
         )
-    leidos = list(leer_carpeta(carpeta))
+    # El conjunto llega en 2018/ y 2020/, cada uno con train/ y test/: se leen todas las
+    # subcarpetas y cada persona queda en un solo registro (ver `leer_conjunto`).
+    leidos = leer_conjunto(carpeta)
     if not leidos:
         raise SystemExit(f"la carpeta {carpeta} no tiene ningún .xml que leer")
     return leidos
