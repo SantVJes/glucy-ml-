@@ -1,5 +1,7 @@
 # glucy-ml
 
+> **¿Vas a continuar el proyecto?** Empieza por [`docs/TRASPASO.md`](docs/TRASPASO.md) y trabaja sobre la rama `develop`.
+
 > **Glucy — «Tu glucosa, media hora antes».**
 > Sistema que registra glucosa por tres vías intercambiables, la predice a 30 y 60 minutos con
 > un modelo de aprendizaje automático y explica cada predicción en español llano.
