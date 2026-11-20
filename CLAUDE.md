@@ -186,6 +186,9 @@ request.
 
 ## Dónde está el resto de la documentación
 
+**Si llegas sin contexto, empieza por [`docs/TRASPASO.md`](docs/TRASPASO.md)**: el estado real,
+lo que falta en orden, las trampas que ya costaron horas, y que el trabajo vive en `develop`.
+
 Carpeta `glucy-base` en los archivos del proyecto de Claude: `00-CONTEXTO-GLUCY.md`, `03-glucy-ml.md`
 (la tabla de correspondencia con OhioT1DM y el detalle de la validación) y
 `05-PENDIENTES-Y-CONTRADICCIONES.md`. La fuente es `Glucy - Reporte del Avance 1.pdf`.
