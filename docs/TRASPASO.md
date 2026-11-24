@@ -48,22 +48,17 @@ Escrito el 20 de noviembre de 2026. Si lees esto mucho después, compara contra 
 
 Cada punto tiene su issue en este repositorio.
 
-1. **Convertir `v0.3.0-ohiot1dm` a Core ML y llevarlo a la app.** Hoy hay un desfase: el
-   backend carga `m1/m2-v0.3.0-ohiot1dm` (elige el último por orden alfabético en
-   `artifacts/`), pero la app trae `GlucyM1.mlmodel` y `GlucyM2.mlmodel` de
-   `v0.2.0-simulador`. Pasos:
+1. **Hecho el 24 de noviembre de 2026: `v0.3.0-ohiot1dm` convertido a Core ML** y llevado a la
+   app (glucy-ios, `Glucy/Resources/Modelos/`). Fiel a XGBoost: 0.000305 mg/dL de diferencia
+   máxima en M-1 y 0.000275 en M-2, sobre 2 000 filas de OhioT1DM. Para la próxima versión:
    ```bash
-   python -m src.export.to_coreml --artefacto artifacts/m1-v0.3.0-ohiot1dm.json --datos ohiot1dm
-   python -m src.export.to_coreml --artefacto artifacts/m2-v0.3.0-ohiot1dm.json --datos ohiot1dm
+   python -m src.export.to_coreml --artefacto artifacts/m1-vX.json --datos ohiot1dm \
+       --carpeta data/ohiot1dm/OhioT1DM
    ```
-   La conversión deja junto al artefacto un `-coreml.json` con la diferencia máxima contra
-   XGBoost; tiene que quedar por debajo de 0.001 mg/dL. Luego se copian los `.mlmodel` a
-   `glucy-ios/Glucy/Resources/Modelos/` como `GlucyM1.mlmodel` y `GlucyM2.mlmodel`, **y hay
-   que actualizar las cifras fijas de `glucy-ios/GlucyTests/ModeloCoreMLTests.swift`**: la
-   versión esperada, `metricasSePuedenReportar` (pasa a `true` con OhioT1DM) y los tres
-   números de referencia (160.777 74, 158.900 01 y 154.951 94 son del simulador). Saca los
-   nuevos corriendo el `.ubj` con la misma fila en `float32`. Ese cambio va en un PR de
-   glucy-ios.
+   (la carpeta es la que deja el zip al descomprimirse), se copian los `.mlmodel` como
+   `GlucyM1.mlmodel` y `GlucyM2.mlmodel`, y se actualizan los números fijos de
+   `glucy-ios/GlucyTests/ModeloCoreMLTests.swift` corriendo el `.ubj` con la misma fila en
+   `float32`.
 2. **Correr la línea base LSTM con OhioT1DM.** El protocolo exige las cinco líneas base y el
    reporte dice que falta esta. Con las otras cuatro la corrida tardó 1 h 50 min; quita
    `--sin-lstm` y córrela donde haya tiempo (mejor con GPU). Agrega la fila a la tabla de
